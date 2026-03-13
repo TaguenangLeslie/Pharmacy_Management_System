@@ -71,6 +71,7 @@ include 'includes/templates/header.php';
                 </form>
                 
                 <div class="mt-4 text-center">
+                    <p class="text-muted">Don't have an account? <a href="register.php" class="text-primary fw-bold text-decoration-none">Sign up here</a></p>
                     <a href="index.php" class="small text-decoration-none"><i class="fas fa-arrow-left me-1"></i> Back to Home</a>
                 </div>
             </div>

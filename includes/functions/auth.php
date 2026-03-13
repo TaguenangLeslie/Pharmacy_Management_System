@@ -19,7 +19,7 @@ function is_logged_in() {
  */
 function require_login() {
     if (!is_logged_in()) {
-        header("Location: " . BASE_URL . "index.php");
+        header("Location: " . BASE_URL . "login.php");
         exit();
     }
 }
@@ -55,7 +55,7 @@ function login_user($pdo, $username, $password) {
     $user = $stmt->fetch();
 
     if ($user && password_verify($password, $user['password_hash'])) {
-        if (!$user['is_active']) {
+        if (isset($user['is_active']) && $user['is_active'] == 0) {
             return "Your account is deactivated. Please contact admin.";
         }
 
@@ -64,6 +64,7 @@ function login_user($pdo, $username, $password) {
         $_SESSION['full_name'] = $user['full_name'];
         $_SESSION['role'] = $user['role'];
         $_SESSION['avatar'] = $user['avatar'];
+        $_SESSION['pharmacy_id'] = $user['pharmacy_id'];
 
         // Update last login
         $stmt = $pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?");
@@ -81,6 +82,6 @@ function login_user($pdo, $username, $password) {
 function logout_user() {
     session_unset();
     session_destroy();
-    header("Location: " . BASE_URL . "index.php");
+    header("Location: " . BASE_URL . "login.php");
     exit();
 }

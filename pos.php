@@ -11,21 +11,78 @@ require_login();
 $page_title = __('pos');
 $active_page = 'pos';
 
-// Fetch all medicines with stock for the POS
+// Handle Pharmacy Context for Platform Admin
+$pharmacy_id = $_SESSION['pharmacy_id'];
+$is_platform_admin = (has_role('admin') && !$pharmacy_id);
+
+if ($is_platform_admin && isset($_GET['pharmacy_id'])) {
+    $pharmacy_id = $_GET['pharmacy_id'];
+}
+
+// Fetch all medicines with stock for the POS (Filtered by Pharmacy)
 try {
-    $stmt = $pdo->query("SELECT id, name, generic_name, price, quantity, unit FROM medicines WHERE quantity > 0 ORDER BY name ASC");
-    $all_medicines = $stmt->fetchAll();
+    $all_medicines = [];
+    if ($pharmacy_id) {
+        $stmt = $pdo->prepare("SELECT id, name, generic_name, price, quantity, unit FROM medicines WHERE quantity > 0 AND pharmacy_id = ? ORDER BY name ASC");
+        $stmt->execute([$pharmacy_id]);
+        $all_medicines = $stmt->fetchAll();
+    }
     
-    // Fetch customers
-    $stmt = $pdo->query("SELECT id, name FROM customers ORDER BY name ASC");
-    $customers = $stmt->fetchAll();
+    // Fetch customers (Limited to pharmacy or shared)
+    if ($pharmacy_id) {
+        $stmt = $pdo->prepare("SELECT id, name FROM customers WHERE pharmacy_id = ? OR pharmacy_id IS NULL ORDER BY name ASC");
+        $stmt->execute([$pharmacy_id]);
+        $customers = $stmt->fetchAll();
+    } else {
+        $customers = [];
+    }
+
+    // Fetch list of pharmacies for System Admin selector
+    $pharmacies_list = [];
+    if ($is_platform_admin) {
+        $pharmacies_list = $pdo->query("SELECT id, name FROM pharmacies WHERE status = 'active' ORDER BY name ASC")->fetchAll();
+    }
 } catch (PDOException $e) {
     $all_medicines = [];
     $customers = [];
+    $pharmacies_list = [];
 }
 
 include 'includes/templates/header.php';
 ?>
+
+<?php if ($is_platform_admin): ?>
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h5 class="mb-1 fw-bold"><i class="fas fa-user-shield text-primary me-2"></i> System Admin POS Console</h5>
+                <p class="text-muted small mb-0">Select a pharmacy to start processing local sales on their behalf.</p>
+            </div>
+            <div class="col-md-6">
+                <form action="pos.php" method="GET" class="d-flex gap-2">
+                    <select name="pharmacy_id" class="form-select shadow-none" onchange="this.form.submit()">
+                        <option value="">-- Choose Pharmacy --</option>
+                        <?php foreach ($pharmacies_list as $ph): ?>
+                        <option value="<?php echo $ph['id']; ?>" <?php echo ($pharmacy_id == $ph['id']) ? 'selected' : ''; ?>>
+                            <?php echo $ph['name']; ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if (!$pharmacy_id && $is_platform_admin): ?>
+    <div class="text-center py-5">
+        <i class="fas fa-hospital fa-4x text-muted mb-3"></i>
+        <h3>Please select a pharmacy</h3>
+        <p>To use the Point of Sale, you must first select which branch you are representing.</p>
+    </div>
+<?php else: ?>
 
 <div class="row">
     <!-- POS Left Side: Product Search & List -->
@@ -112,6 +169,7 @@ include 'includes/templates/header.php';
                     
                     <form id="checkout-form" action="process_sale.php" method="POST">
                         <input type="hidden" name="cart_data" id="cart-data-input">
+                        <input type="hidden" name="pharmacy_id" value="<?php echo $pharmacy_id; ?>">
                         
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Select Customer</label>
@@ -146,7 +204,7 @@ include 'includes/templates/header.php';
         </div>
     </div>
 </div>
-
+<?php endif; ?>
 <?php 
 $extra_js = '
 <script>

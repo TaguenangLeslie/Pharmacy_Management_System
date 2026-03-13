@@ -20,17 +20,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone = sanitize_input($_POST['phone']);
     $email = sanitize_input($_POST['email']);
     $address = sanitize_input($_POST['address']);
+    $pharma_id = $_SESSION['pharmacy_id'];
     
     try {
         if (isset($_POST['action']) && $_POST['action'] === 'edit') {
             $id = $_POST['customer_id'];
-            $stmt = $pdo->prepare("UPDATE customers SET name=?, phone=?, email=?, address=? WHERE id=?");
-            $stmt->execute([$name, $phone, $email, $address, $id]);
+            $stmt = $pdo->prepare("UPDATE customers SET name=?, phone=?, email=?, address=? WHERE id=? AND (pharmacy_id = ? OR pharmacy_id IS NULL)");
+            $stmt->execute([$name, $phone, $email, $address, $id, $pharma_id]);
             log_activity($pdo, $_SESSION['user_id'], 'UPDATE_CUSTOMER', 'customers', $id);
             $message = "Customer updated successfully!";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO customers (name, phone, email, address) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$name, $phone, $email, $address]);
+            $stmt = $pdo->prepare("INSERT INTO customers (name, phone, email, address, pharmacy_id) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$name, $phone, $email, $address, $pharma_id]);
             log_activity($pdo, $_SESSION['user_id'], 'ADD_CUSTOMER', 'customers', $pdo->lastInsertId());
             $message = "Customer added successfully!";
         }
@@ -42,9 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Handle Delete
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
+    $pharma_id = $_SESSION['pharmacy_id'];
     try {
-        $stmt = $pdo->prepare("DELETE FROM customers WHERE id = ?");
-        $stmt->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM customers WHERE id = ? AND (pharmacy_id = ? OR pharmacy_id IS NULL)");
+        $stmt->execute([$id, $pharma_id]);
         log_activity($pdo, $_SESSION['user_id'], 'DELETE_CUSTOMER', 'customers', $id);
         $message = "Customer deleted successfully!";
     } catch (PDOException $e) {
@@ -54,7 +56,17 @@ if (isset($_GET['delete'])) {
 
 // Fetch Customers
 try {
-    $stmt = $pdo->query("SELECT * FROM customers ORDER BY name ASC");
+    $pharma_id = $_SESSION['pharmacy_id'] ?? null;
+    if ($pharma_id) {
+        $stmt = $pdo->prepare("SELECT * FROM customers WHERE pharmacy_id = ? OR pharmacy_id IS NULL ORDER BY name ASC");
+        $stmt->execute([$pharma_id]);
+    } else {
+        // Platform Admin - Fetch all
+        $stmt = $pdo->query("SELECT c.*, p.name as pharmacy_name 
+                             FROM customers c 
+                             LEFT JOIN pharmacies p ON c.pharmacy_id = p.id 
+                             ORDER BY p.name ASC, c.name ASC");
+    }
     $customers = $stmt->fetchAll();
 } catch (PDOException $e) {
     $customers = [];
@@ -79,6 +91,79 @@ include 'includes/templates/header.php';
     </div>
 <?php endif; ?>
 
+<?php
+// Group customers if Platform Admin
+$grouped_customers = [];
+if (!$pharma_id) {
+    foreach ($customers as $c) {
+        $ph_key = $c['pharmacy_name'] ?: 'System-wide';
+        $grouped_customers[$ph_key][] = $c;
+    }
+}
+?>
+
+<?php if (!$pharma_id): ?>
+<div class="accordion border-0 shadow-sm rounded-4 overflow-hidden" id="customersAccordion">
+    <?php if (empty($grouped_customers)): ?>
+        <div class="card border-0 p-5 text-center text-muted">No customers found in the system.</div>
+    <?php else: 
+        $cidx = 0;
+        foreach ($grouped_customers as $ph_name => $items): 
+            $cidx++;
+            $cacc_id = "custCollapse" . $cidx;
+    ?>
+    <div class="accordion-item border-0 border-bottom">
+        <h2 class="accordion-header">
+            <button class="accordion-button <?php echo ($cidx > 1) ? 'collapsed' : ''; ?> fw-bold py-3" type="button" data-bs-toggle="collapse" data-bs-target="#<?php echo $cacc_id; ?>">
+                <i class="fas fa-hospital me-2 text-primary"></i> <?php echo $ph_name; ?> 
+                <span class="badge bg-light text-dark border ms-2"><?php echo count($items); ?> Records</span>
+            </button>
+        </h2>
+        <div id="<?php echo $cacc_id; ?>" class="accordion-collapse collapse <?php echo ($cidx == 1) ? 'show' : ''; ?>" data-bs-parent="#customersAccordion">
+            <div class="accordion-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Customer Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Address</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($items as $c): ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold"><?php echo $c['name']; ?></div>
+                                    <div class="small text-muted">Joined <?php echo date('M Y', strtotime($c['created_at'])); ?></div>
+                                </td>
+                                <td><a href="tel:<?php echo $c['phone']; ?>" class="text-decoration-none"><?php echo $c['phone']; ?></a></td>
+                                <td><?php echo $c['email']; ?></td>
+                                <td><span class="text-truncate d-inline-block" style="max-width: 200px;"><?php echo $c['address']; ?></span></td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-info edit-customer" data-json='<?php echo json_encode($c); ?>'>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <a href="customers.php?delete=<?php echo $c['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this customer?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; endif; ?>
+</div>
+
+<?php else: ?>
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -121,6 +206,7 @@ include 'includes/templates/header.php';
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <!-- Modal -->
 <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">

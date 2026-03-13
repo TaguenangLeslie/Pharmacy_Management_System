@@ -8,33 +8,49 @@ require_once 'includes/functions/helpers.php';
 
 require_login();
 
+// If user is a customer, they should see a limited view or redirect
+if (has_role('customer')) {
+    redirect('explore.php');
+}
+
+$pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+
 $page_title = 'Dashboard';
 $active_page = 'dashboard';
 
-// Fetch some stats (dummy data if DB not ready, but we use the connection here)
+// Fetch some stats with multi-tenant support
 try {
-    // Total Sales Today
-    $stmt = $pdo->query("SELECT SUM(grand_total) as total FROM sales WHERE DATE(sale_date) = CURDATE()");
-    $today_sales = $stmt->fetch()['total'] ?? 0;
+    $pharma_id = $_SESSION['pharmacy_id'] ?? null;
+    $ph_filter = $pharma_id ? " WHERE pharmacy_id = $pharma_id" : "";
+    $ph_filter_and = $pharma_id ? " AND pharmacy_id = $pharma_id" : "";
 
-    // Low Stock Alert
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM medicines WHERE quantity <= reorder_level");
-    $low_stock_count = $stmt->fetch()['count'] ?? 0;
+    // 1. Today's Sales
+    $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = CURDATE() $ph_filter_and");
+    $stmt->execute();
+    $today_sales = $stmt->fetchColumn() ?: 0;
 
-    // Expiring Soon (Next 30 days)
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM medicines WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
-    $expiring_soon = $stmt->fetch()['count'] ?? 0;
+    // 2. Low Stock Count
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM medicines WHERE quantity <= reorder_level $ph_filter_and");
+    $stmt->execute();
+    $low_stock_count = $stmt->fetchColumn() ?: 0;
 
-    // Total Medicines
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM medicines");
-    $total_medicines = $stmt->fetch()['count'] ?? 0;
+    // 3. Expiring Soon (90 days)
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 90 DAY) AND expiry_date > CURDATE() $ph_filter_and");
+    $stmt->execute();
+    $expiring_soon = $stmt->fetchColumn() ?: 0;
 
-    // Recent Sales
-    $stmt = $pdo->query("SELECT * FROM sales ORDER BY sale_date DESC LIMIT 5");
+    // 4. Total Medicines
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM medicines" . ($pharma_id ? " WHERE pharmacy_id = $pharma_id" : ""));
+    $stmt->execute();
+    $total_medicines = $stmt->fetchColumn() ?: 0;
+
+    // 5. Recent Sales
+    $stmt = $pdo->prepare("SELECT * FROM sales $ph_filter ORDER BY sale_date DESC LIMIT 5");
+    $stmt->execute();
     $recent_sales = $stmt->fetchAll();
 
 } catch (PDOException $e) {
-    // Fallback if DB doesn't have tables yet
+    // Fallback if DB doesn't have tables yet or error
     $today_sales = 0;
     $low_stock_count = 0;
     $expiring_soon = 0;
@@ -173,12 +189,14 @@ include 'includes/templates/header.php';
 // Fetch chart data (Last 7 days)
 $chart_labels = [];
 $chart_data = [];
+$ph_filter_and = ($_SESSION['pharmacy_id'] ?? null) ? " AND pharmacy_id = " . intval($_SESSION['pharmacy_id']) : "";
+
 for ($i = 6; $i >= 0; $i--) {
     $date = date('Y-m-d', strtotime("-$i days"));
     $label = date('D', strtotime($date));
     $chart_labels[] = $label;
     
-    $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = ?");
+    $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = ? $ph_filter_and");
     $stmt->execute([$date]);
     $chart_data[] = $stmt->fetchColumn() ?: 0;
 }

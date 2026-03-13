@@ -15,13 +15,22 @@ if (!isset($_GET['id'])) {
 $sale_id = $_GET['id'];
 
 try {
-    // Fetch sale details
-    $stmt = $pdo->prepare("SELECT s.*, u.full_name as cashier_name FROM sales s LEFT JOIN users u ON s.user_id = u.id WHERE s.id = ?");
+    // Fetch sale details with pharmacy info
+    $stmt = $pdo->prepare("SELECT s.*, u.full_name as cashier_name, p.name as pharmacy_name, p.address as pharmacy_address, p.phone as pharmacy_phone 
+                           FROM sales s 
+                           LEFT JOIN users u ON s.user_id = u.id 
+                           JOIN pharmacies p ON s.pharmacy_id = p.id
+                           WHERE s.id = ?");
     $stmt->execute([$sale_id]);
     $sale = $stmt->fetch();
 
     if (!$sale) {
         die("Sale not found.");
+    }
+
+    // Security Check: Only staff of that pharmacy, the customer themselves, or platform admin can view
+    if (!has_role('admin') && $_SESSION['pharmacy_id'] != $sale['pharmacy_id'] && $_SESSION['user_id'] != $sale['user_id']) {
+        die("Access Denied: You do not have permission to view this receipt.");
     }
 
     // Fetch sale items
@@ -42,9 +51,9 @@ include 'includes/templates/header.php';
         <div class="card border-0 shadow-sm">
             <div class="card-body p-5">
                 <div class="text-center mb-5">
-                    <h3 class="text-primary mb-1"><i class="fas fa-hand-holding-medical"></i> PharmaCare</h3>
-                    <p class="text-muted small mb-0">123 Pharmacy St, Health City</p>
-                    <p class="text-muted small mb-0">Tel: +123 456 7890</p>
+                    <h3 class="text-primary mb-1"><i class="fas fa-hand-holding-medical"></i> <?php echo $sale['pharmacy_name']; ?></h3>
+                    <p class="text-muted small mb-0"><?php echo $sale['pharmacy_address']; ?></p>
+                    <p class="text-muted small mb-0">Tel: <?php echo $sale['pharmacy_phone']; ?></p>
                 </div>
                 
                 <div class="row mb-4">

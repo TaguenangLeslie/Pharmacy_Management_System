@@ -23,11 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = sanitize_input($_POST['email']);
         $address = sanitize_input($_POST['address']);
         $payment_terms = sanitize_input($_POST['payment_terms']);
+        $pharma_id = $_SESSION['pharmacy_id'];
 
         if ($_POST['action'] === 'add') {
             try {
-                $stmt = $pdo->prepare("INSERT INTO suppliers (name, contact_person, phone, email, address, payment_terms) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$name, $contact_person, $phone, $email, $address, $payment_terms]);
+                $stmt = $pdo->prepare("INSERT INTO suppliers (name, contact_person, phone, email, address, payment_terms, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$name, $contact_person, $phone, $email, $address, $payment_terms, $pharma_id]);
                 log_activity($pdo, $_SESSION['user_id'], 'ADD_SUPPLIER', 'suppliers', $pdo->lastInsertId());
                 $message = "Supplier added successfully!";
             } catch (PDOException $e) {
@@ -36,8 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($_POST['action'] === 'edit') {
             $id = $_POST['supplier_id'];
             try {
-                $stmt = $pdo->prepare("UPDATE suppliers SET name=?, contact_person=?, phone=?, email=?, address=?, payment_terms=? WHERE id=?");
-                $stmt->execute([$name, $contact_person, $phone, $email, $address, $payment_terms, $id]);
+                $stmt = $pdo->prepare("UPDATE suppliers SET name=?, contact_person=?, phone=?, email=?, address=?, payment_terms=? WHERE id=? AND pharmacy_id=?");
+                $stmt->execute([$name, $contact_person, $phone, $email, $address, $payment_terms, $id, $pharma_id]);
                 log_activity($pdo, $_SESSION['user_id'], 'UPDATE_SUPPLIER', 'suppliers', $id);
                 $message = "Supplier updated successfully!";
             } catch (PDOException $e) {
@@ -50,9 +51,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Handle Delete
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
+    $pharma_id = $_SESSION['pharmacy_id'];
     try {
-        $stmt = $pdo->prepare("DELETE FROM suppliers WHERE id = ?");
-        $stmt->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM suppliers WHERE id = ? AND pharmacy_id = ?");
+        $stmt->execute([$id, $pharma_id]);
         log_activity($pdo, $_SESSION['user_id'], 'DELETE_SUPPLIER', 'suppliers', $id);
         $message = "Supplier deleted successfully!";
     } catch (PDOException $e) {
@@ -62,7 +64,17 @@ if (isset($_GET['delete'])) {
 
 // Fetch Suppliers
 try {
-    $stmt = $pdo->query("SELECT * FROM suppliers ORDER BY name ASC");
+    $pharma_id = $_SESSION['pharmacy_id'] ?? null;
+    if ($pharma_id) {
+        $stmt = $pdo->prepare("SELECT * FROM suppliers WHERE pharmacy_id = ? ORDER BY name ASC");
+        $stmt->execute([$pharma_id]);
+    } else {
+        // Platform Admin - Fetch all
+        $stmt = $pdo->query("SELECT s.*, p.name as pharmacy_name 
+                             FROM suppliers s 
+                             JOIN pharmacies p ON s.pharmacy_id = p.id 
+                             ORDER BY p.name ASC, s.name ASC");
+    }
     $suppliers = $stmt->fetchAll();
 } catch (PDOException $e) {
     $suppliers = [];
@@ -95,6 +107,77 @@ include 'includes/templates/header.php';
     </div>
 <?php endif; ?>
 
+<?php
+// Group suppliers if Platform Admin
+$grouped_suppliers = [];
+if (!$pharma_id) {
+    foreach ($suppliers as $s) {
+        $grouped_suppliers[$s['pharmacy_name']][] = $s;
+    }
+}
+?>
+
+<?php if (!$pharma_id): ?>
+<div class="accordion border-0 shadow-sm rounded-4 overflow-hidden" id="suppliersAccordion">
+    <?php if (empty($grouped_suppliers)): ?>
+        <div class="card border-0 p-5 text-center text-muted">No suppliers found in the system.</div>
+    <?php else: 
+        $sidx = 0;
+        foreach ($grouped_suppliers as $ph_name => $items): 
+            $sidx++;
+            $sacc_id = "supCollapse" . $sidx;
+    ?>
+    <div class="accordion-item border-0 border-bottom">
+        <h2 class="accordion-header">
+            <button class="accordion-button <?php echo ($sidx > 1) ? 'collapsed' : ''; ?> fw-bold py-3" type="button" data-bs-toggle="collapse" data-bs-target="#<?php echo $sacc_id; ?>">
+                <i class="fas fa-hospital me-2 text-primary"></i> <?php echo $ph_name; ?> 
+                <span class="badge bg-light text-dark border ms-2"><?php echo count($items); ?> Suppliers</span>
+            </button>
+        </h2>
+        <div id="<?php echo $sacc_id; ?>" class="accordion-collapse collapse <?php echo ($sidx == 1) ? 'show' : ''; ?>" data-bs-parent="#suppliersAccordion">
+            <div class="accordion-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Supplier Name</th>
+                                <th>Contact Person</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Payment Terms</th>
+                                <th class="text-center pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($items as $sup): ?>
+                            <tr>
+                                <td class="ps-4 fw-bold"><?php echo $sup['name']; ?></td>
+                                <td><?php echo $sup['contact_person']; ?></td>
+                                <td><?php echo $sup['phone']; ?></td>
+                                <td><?php echo $sup['email']; ?></td>
+                                <td><span class="badge bg-light text-dark"><?php echo $sup['payment_terms']; ?></span></td>
+                                <td class="text-center pe-4">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-info edit-sup" data-json='<?php echo json_encode($sup); ?>'>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <a href="suppliers.php?delete=<?php echo $sup['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this supplier?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; endif; ?>
+</div>
+
+<?php else: ?>
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -134,6 +217,7 @@ include 'includes/templates/header.php';
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <!-- Add/Edit Supplier Modal -->
 <div class="modal fade" id="supplierModal" tabindex="-1" aria-labelledby="supplierModalLabel" aria-hidden="true">

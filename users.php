@@ -22,14 +22,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $full_name = sanitize_input($_POST['full_name']);
         $role = $_POST['role'];
         $is_active = isset($_POST['is_active']) ? 1 : 0;
+        $pharmacy_id = !empty($_POST['pharmacy_id']) ? $_POST['pharmacy_id'] : $_SESSION['pharmacy_id'];
 
         if ($_POST['action'] === 'add') {
             $password = $_POST['password'];
             $hashed_pass = password_hash($password, PASSWORD_BCRYPT);
             
             try {
-                $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, role, full_name, is_active) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$username, $email, $hashed_pass, $role, $full_name, $is_active]);
+                $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, role, full_name, is_active, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$username, $email, $hashed_pass, $role, $full_name, $is_active, $pharmacy_id]);
                 
                 log_activity($pdo, $_SESSION['user_id'], 'ADD_USER', 'users', $pdo->lastInsertId());
                 $message = "User added successfully!";
@@ -42,14 +43,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($_POST['action'] === 'edit') {
             $id = $_POST['user_id'];
+            $pharma_id = $_SESSION['pharmacy_id'];
             try {
+                // Determine if we restricted to own pharmacy (staff) or all (platform admin)
+                $where_clause = $pharma_id ? " WHERE id=? AND pharmacy_id=?" : " WHERE id=?";
+                $params_base = $pharma_id ? [$id, $pharma_id] : [$id];
+
                 if (!empty($_POST['password'])) {
                     $hashed_pass = password_hash($_POST['password'], PASSWORD_BCRYPT);
-                    $stmt = $pdo->prepare("UPDATE users SET username=?, email=?, password_hash=?, role=?, full_name=?, is_active=? WHERE id=?");
-                    $stmt->execute([$username, $email, $hashed_pass, $role, $full_name, $is_active, $id]);
+                    $stmt = $pdo->prepare("UPDATE users SET username=?, email=?, password_hash=?, role=?, full_name=?, is_active=?, pharmacy_id=? " . $where_clause);
+                    $stmt->execute([$username, $email, $hashed_pass, $role, $full_name, $is_active, $pharmacy_id, ...$params_base]);
                 } else {
-                    $stmt = $pdo->prepare("UPDATE users SET username=?, email=?, role=?, full_name=?, is_active=? WHERE id=?");
-                    $stmt->execute([$username, $email, $role, $full_name, $is_active, $id]);
+                    $stmt = $pdo->prepare("UPDATE users SET username=?, email=?, role=?, full_name=?, is_active=?, pharmacy_id=? " . $where_clause);
+                    $stmt->execute([$username, $email, $role, $full_name, $is_active, $pharmacy_id, ...$params_base]);
                 }
                 
                 log_activity($pdo, $_SESSION['user_id'], 'UPDATE_USER', 'users', $id);
@@ -68,12 +74,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Handle Delete
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
+    $pharma_id = $_SESSION['pharmacy_id'];
     if ($id == $_SESSION['user_id']) {
         $error = "You cannot delete your own account.";
     } else {
         try {
-            $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
-            $stmt->execute([$id]);
+            $where_clause = $pharma_id ? " WHERE id=? AND pharmacy_id=?" : " WHERE id=?";
+            $stmt = $pdo->prepare("DELETE FROM users " . $where_clause);
+            $stmt->execute($pharma_id ? [$id, $pharma_id] : [$id]);
             log_activity($pdo, $_SESSION['user_id'], 'DELETE_USER', 'users', $id);
             $message = "User deleted successfully!";
         } catch (PDOException $e) {
@@ -82,12 +90,23 @@ if (isset($_GET['delete'])) {
     }
 }
 
-// Fetch Users
+// Fetch Users (Filtered by pharmacy if not platform admin)
 try {
-    $stmt = $pdo->query("SELECT * FROM users ORDER BY username ASC");
+    $pharmacy_id = $_SESSION['pharmacy_id'];
+    if ($pharmacy_id) {
+        $stmt = $pdo->prepare("SELECT u.*, p.name as pharmacy_name FROM users u LEFT JOIN pharmacies p ON u.pharmacy_id = p.id WHERE u.pharmacy_id = ? ORDER BY u.created_at DESC");
+        $stmt->execute([$pharmacy_id]);
+    } else {
+        $stmt = $pdo->query("SELECT u.*, p.name as pharmacy_name FROM users u LEFT JOIN pharmacies p ON u.pharmacy_id = p.id ORDER BY p.name ASC, u.created_at DESC");
+    }
     $users = $stmt->fetchAll();
+    
+    // Fetch all pharmacies for dropdown
+    $stmt = $pdo->query("SELECT id, name FROM pharmacies ORDER BY name ASC");
+    $all_pharmacies = $stmt->fetchAll();
 } catch (PDOException $e) {
     $users = [];
+    $all_pharmacies = [];
     $error = "Database error: " . $e->getMessage();
 }
 
@@ -117,43 +136,144 @@ include 'includes/templates/header.php';
     </div>
 <?php endif; ?>
 
+<?php
+// Group users if Platform Admin
+$grouped_users = [];
+$my_pharma = $_SESSION['pharmacy_id'] ?? null;
+if (!$my_pharma) {
+    foreach ($users as $u) {
+        $ph_key = $u['pharmacy_name'] ?: 'Platform Administration';
+        $grouped_users[$ph_key][] = $u;
+    }
+}
+?>
+
+<?php if (!$my_pharma): ?>
+<div class="accordion border-0 shadow-sm rounded-4 overflow-hidden" id="usersAccordion">
+    <?php if (empty($grouped_users)): ?>
+        <div class="card border-0 p-5 text-center text-muted">No users found in the system.</div>
+    <?php else: 
+        $uidx = 0;
+        foreach ($grouped_users as $ph_name => $items): 
+            $uidx++;
+            $uacc_id = "userCollapse" . $uidx;
+    ?>
+    <div class="accordion-item border-0 border-bottom">
+        <h2 class="accordion-header">
+            <button class="accordion-button <?php echo ($uidx > 1) ? 'collapsed' : ''; ?> fw-bold py-3" type="button" data-bs-toggle="collapse" data-bs-target="#<?php echo $uacc_id; ?>">
+                <i class="fas fa-hospital me-2 text-primary"></i> <?php echo $ph_name; ?> 
+                <span class="badge bg-light text-dark border ms-2"><?php echo count($items); ?> Users</span>
+            </button>
+        </h2>
+        <div id="<?php echo $uacc_id; ?>" class="accordion-collapse collapse <?php echo ($uidx == 1) ? 'show' : ''; ?>" data-bs-parent="#usersAccordion">
+            <div class="accordion-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">User</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($items as $u): ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded-circle p-2 me-3">
+                                            <i class="fas fa-user text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold"><?php echo $u['username']; ?></div>
+                                            <div class="small text-muted"><?php echo $u['email']; ?></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-light text-dark border"><?php echo ucfirst($u['role']); ?></span></td>
+                                <td>
+                                    <?php if ($u['is_active']): ?>
+                                        <span class="badge bg-success">Active</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger">Inactive</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo date('M d, Y', strtotime($u['created_at'])); ?></td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-info edit-user" data-json='<?php echo json_encode($u); ?>'>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <?php if ($u['id'] != $_SESSION['user_id']): ?>
+                                        <a href="users.php?delete=<?php echo $u['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this user?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; endif; ?>
+</div>
+
+<?php else: ?>
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4">Full Name</th>
-                        <th>Username</th>
-                        <th>Email</th>
+                        <th class="ps-4">User</th>
                         <th>Role</th>
                         <th>Status</th>
-                        <th class="text-center pe-4">Actions</th>
+                        <th>Created</th>
+                        <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($users)): ?>
-                    <tr><td colspan="6" class="text-center py-5 text-muted">No users found.</td></tr>
-                    <?php else: foreach ($users as $user): ?>
+                    <tr><td colspan="5" class="text-center py-5 text-muted">No users found.</td></tr>
+                    <?php else: foreach ($users as $u): ?>
                     <tr>
-                        <td class="ps-4 fw-bold"><?php echo $user['full_name']; ?></td>
-                        <td><?php echo $user['username']; ?></td>
-                        <td><?php echo $user['email']; ?></td>
-                        <td><span class="badge bg-light text-dark border"><?php echo ucfirst($user['role']); ?></span></td>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-light rounded-circle p-2 me-3">
+                                    <i class="fas fa-user text-primary"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold"><?php echo $u['username']; ?></div>
+                                    <div class="small text-muted"><?php echo $u['email']; ?></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge bg-light text-dark border"><?php echo ucfirst($u['role']); ?></span></td>
                         <td>
-                            <?php if ($user['is_active']): ?>
-                            <span class="badge bg-success">Active</span>
+                            <?php if ($u['is_active']): ?>
+                                <span class="badge bg-success">Active</span>
                             <?php else: ?>
-                            <span class="badge bg-secondary">Inactive</span>
+                                <span class="badge bg-danger">Inactive</span>
                             <?php endif; ?>
                         </td>
-                        <td class="text-center pe-4">
-                            <button class="btn btn-sm btn-outline-info me-1 edit-user" data-json='<?php echo json_encode($user); ?>'>
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <a href="users.php?delete=<?php echo $user['id']; ?>" class="btn btn-sm btn-outline-danger <?php echo ($user['id'] == $_SESSION['user_id']) ? 'disabled' : ''; ?>" onclick="return confirm('Are you sure you want to delete this user?')">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                        <td><?php echo date('M d, Y', strtotime($u['created_at'])); ?></td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-info edit-user" data-json='<?php echo json_encode($u); ?>'>
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <?php if ($u['id'] != $_SESSION['user_id']): ?>
+                                <a href="users.php?delete=<?php echo $u['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this user?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; endif; ?>
@@ -162,6 +282,7 @@ include 'includes/templates/header.php';
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <!-- Add/Edit User Modal -->
 <div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
@@ -194,12 +315,28 @@ include 'includes/templates/header.php';
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Role</label>
-                            <select name="role" id="user-role" class="form-select">
+                            <select name="role" id="user-role" class="form-select" required>
                                 <option value="admin">Admin</option>
                                 <option value="pharmacist">Pharmacist</option>
                                 <option value="cashier">Cashier</option>
+                                <option value="customer">Customer</option>
                             </select>
                         </div>
+                        <?php 
+                        // Safety Valve: Master 'admin' always sees the selector
+                        // Regular Platform Admins (!my_pharma) also see the selector
+                        if (!$my_pharma || $_SESSION['username'] === 'admin'): 
+                        ?>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Assign Pharmacy</label>
+                            <select name="pharmacy_id" id="user-pharma" class="form-select">
+                                <option value="">Platform (None)</option>
+                                <?php foreach ($all_pharmacies as $p): ?>
+                                    <option value="<?php echo $p['id']; ?>"><?php echo $p['name']; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <?php endif; ?>
                         <div class="col-md-6 d-flex align-items-center mt-4">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="is_active" id="user-active" checked>
@@ -234,6 +371,9 @@ $extra_js = '
             
             $("#userModalLabel").text("Edit User: " + data.username);
             $("#save-btn").text("Update User");
+            if ($("#user-pharma").length) {
+                $("#user-pharma").val(data.pharmacy_id);
+            }
             $("#userModal").modal("show");
         });
         

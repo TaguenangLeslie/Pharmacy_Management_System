@@ -9,9 +9,21 @@ require_once 'includes/functions/helpers.php';
 // Load system settings
 $app_settings = [];
 try {
-    $stmt = $pdo->query("SELECT * FROM settings");
+    $pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+    
+    // Fetch global settings first
+    $stmt = $pdo->query("SELECT * FROM settings WHERE pharmacy_id IS NULL");
     while ($row = $stmt->fetch()) {
         $app_settings[$row['setting_key']] = $row['setting_value'];
+    }
+    
+    // Fetch pharmacy-specific settings to override
+    if ($pharmacy_id) {
+        $stmt = $pdo->prepare("SELECT * FROM settings WHERE pharmacy_id = ?");
+        $stmt->execute([$pharmacy_id]);
+        while ($row = $stmt->fetch()) {
+            $app_settings[$row['setting_key']] = $row['setting_value'];
+        }
     }
 } catch (PDOException $e) {}
 
@@ -35,7 +47,7 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/style.css">
     
     <?php echo $extra_css ?? ''; ?>
 </head>
@@ -49,9 +61,12 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                     <!-- Global Actions (Notifications & Theme Toggle) -->
                     <div class="global-actions">
                         <?php
-                        // Fetch Notifications (Low Stock & Expiry)
-                        $low_stock_count = $pdo->query("SELECT COUNT(*) FROM medicines WHERE quantity <= reorder_level")->fetchColumn();
-                        $expiry_count = $pdo->query("SELECT COUNT(*) FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)")->fetchColumn();
+                        // Fetch Notifications (Low Stock & Expiry) - Filtered by Pharmacy
+                        $ph_id_nav = $_SESSION['pharmacy_id'] ?? null;
+                        $ph_filter_nav = $ph_id_nav ? " AND pharmacy_id = $ph_id_nav" : "";
+                        
+                        $low_stock_count = $pdo->query("SELECT COUNT(*) FROM medicines WHERE quantity <= reorder_level $ph_filter_nav")->fetchColumn();
+                        $expiry_count = $pdo->query("SELECT COUNT(*) FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) $ph_filter_nav")->fetchColumn();
                         $total_notifs = $low_stock_count + $expiry_count;
                         ?>
                         <div class="dropdown">
@@ -96,7 +111,7 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                     <div class="px-4 py-3 mb-4 border-bottom">
                         <div class="d-flex align-items-center">
                             <a href="profile.php" class="text-decoration-none d-flex align-items-center">
-                                <img src="<?php echo $_SESSION['avatar'] ?? 'assets/img/default-avatar.png'; ?>" class="rounded-circle me-2 border" width="45" height="45" style="object-fit: cover;">
+                                <img src="<?php echo $_SESSION['avatar'] ? BASE_URL . $_SESSION['avatar'] : BASE_URL . 'assets/img/default-avatar.png'; ?>" class="rounded-circle me-2 border" width="45" height="45" style="object-fit: cover;">
                                 <div>
                                     <div class="fw-bold text-dark small mb-0"><?php echo $_SESSION['full_name']; ?></div>
                                     <div class="text-muted" style="font-size: 0.7rem;"><?php echo strtoupper($_SESSION['role']); ?></div>
@@ -109,16 +124,40 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                         <h3 class="text-primary"><i class="fas fa-hand-holding-medical"></i> <?php echo $system_name; ?></h3>
                     </div>
                     <ul class="nav flex-column">
+                        <?php if (has_role(['admin', 'pharmacist', 'cashier'])): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'dashboard') ? 'active' : ''; ?>" href="dashboard.php">
                                 <i class="fas fa-th-large me-2"></i> <?php echo __('dashboard'); ?>
                             </a>
                         </li>
+                        <?php else: ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($active_page == 'explore') ? 'active' : ''; ?>" href="explore.php">
+                                <i class="fas fa-search me-2"></i> Explore
+                            </a>
+                        </li>
+                        <?php endif; ?>
+
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'inventory') ? 'active' : ''; ?>" href="inventory.php">
                                 <i class="fas fa-pills me-2"></i> <?php echo __('inventory'); ?>
                             </a>
                         </li>
+
+                        <?php if (has_role('customer')): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($active_page == 'orders') ? 'active' : ''; ?>" href="orders.php">
+                                <i class="fas fa-shopping-bag me-2"></i> My Orders
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($active_page == 'prescriptions') ? 'active' : ''; ?>" href="prescriptions.php">
+                                <i class="fas fa-file-prescription me-2"></i> Prescriptions
+                            </a>
+                        </li>
+                        <?php endif; ?>
+
+                        <?php if (has_role(['admin', 'pharmacist', 'cashier'])): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'customers') ? 'active' : ''; ?>" href="customers.php">
                                 <i class="fas fa-user-friends me-2"></i> <?php echo __('customers'); ?>
@@ -129,22 +168,33 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                                 <i class="fas fa-money-bill-wave me-2"></i> <?php echo __('expenses'); ?>
                             </a>
                         </li>
+                        <?php if (!has_role('customer')): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'prescriptions') ? 'active' : ''; ?>" href="prescriptions.php">
                                 <i class="fas fa-file-medical me-2"></i> <?php echo __('prescriptions'); ?>
                             </a>
                         </li>
+                        <?php endif; ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'pos') ? 'active' : ''; ?>" href="pos.php">
                                 <i class="fas fa-shopping-cart me-2"></i> <?php echo __('pos'); ?>
                             </a>
                         </li>
+                        <?php endif; ?>
+
                         <?php if (has_role('admin')): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'suppliers') ? 'active' : ''; ?>" href="suppliers.php">
                                 <i class="fas fa-truck me-2"></i> <?php echo __('suppliers'); ?>
                             </a>
                         </li>
+                        <?php if (has_role('admin') && !$_SESSION['pharmacy_id']): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($active_page == 'manage_orders') ? 'active' : ''; ?>" href="manage_orders.php">
+                            <i class="fas fa-globe me-2"></i> Global Orders
+                            </a>
+                        </li>
+                        <?php endif; ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'reports') ? 'active' : ''; ?>" href="reports.php">
                                 <i class="fas fa-chart-line me-2"></i> <?php echo __('reports'); ?>
@@ -155,6 +205,13 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                                 <i class="fas fa-users-cog me-2"></i> <?php echo __('users'); ?>
                             </a>
                         </li>
+                        <?php if (has_role('admin') && !$_SESSION['pharmacy_id']): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($active_page == 'pharmacies') ? 'active' : ''; ?>" href="pharmacies.php">
+                                <i class="fas fa-hospital me-2"></i> Pharmacies
+                            </a>
+                        </li>
+                        <?php endif; ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'settings') ? 'active' : ''; ?>" href="settings.php">
                                 <i class="fas fa-cogs me-2"></i> <?php echo __('settings'); ?>
@@ -170,7 +227,7 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                                 <i class="fas fa-database me-2"></i> <?php echo __('backup'); ?>
                             </a>
                         </li>
-<?php endif; ?>
+                        <?php endif; ?>
                         <li class="nav-item mt-3">
                             <a class="nav-link text-danger" href="logout.php">
                                 <i class="fas fa-sign-out-alt me-2"></i> <?php echo __('logout'); ?>

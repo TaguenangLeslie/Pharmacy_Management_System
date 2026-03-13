@@ -79,7 +79,7 @@ include 'includes/templates/header.php';
         <div class="card border-0 shadow-sm text-center p-4 h-100">
             <div class="card-body">
                 <div class="position-relative d-inline-block mb-4">
-                    <img src="<?php echo $user['avatar'] ?: 'https://via.placeholder.com/150'; ?>" class="rounded-circle shadow-sm border border-4 border-white" style="width: 150px; height: 150px; object-fit: cover;" alt="Avatar">
+                    <img src="<?php echo $user['avatar'] ? BASE_URL . $user['avatar'] : 'https://via.placeholder.com/150'; ?>" class="rounded-circle shadow-sm border border-4 border-white" style="width: 150px; height: 150px; object-fit: cover;" alt="Avatar">
                     <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-primary p-2">
                         <i class="fas fa-camera"></i>
                     </span>

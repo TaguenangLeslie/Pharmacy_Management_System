@@ -20,6 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['prescription_image']
     $patient_age = $_POST['patient_age'];
     $doctor_name = sanitize_input($_POST['doctor_name']);
     $prescription_date = $_POST['prescription_date'];
+    $pharmacy_id = $_POST['pharmacy_id'];
+    $user_id = $_SESSION['user_id'];
     
     $target_dir = "uploads/prescriptions/";
     if (!is_dir($target_dir)) {
@@ -34,8 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['prescription_image']
     if (in_array($file_extension, $allowed_types)) {
         if (move_uploaded_file($_FILES["prescription_image"]["tmp_name"], $target_file)) {
             try {
-                $stmt = $pdo->prepare("INSERT INTO prescriptions (patient_name, patient_age, doctor_name, prescription_date, image_path, status) VALUES (?, ?, ?, ?, ?, 'pending')");
-                $stmt->execute([$patient_name, $patient_age, $doctor_name, $prescription_date, $target_file]);
+                $stmt = $pdo->prepare("INSERT INTO prescriptions (patient_name, patient_age, doctor_name, prescription_date, image_path, pharmacy_id, user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+                $stmt->execute([$patient_name, $patient_age, $doctor_name, $prescription_date, $target_file, $pharmacy_id, $user_id]);
                 $message = "Prescription uploaded successfully!";
                 log_activity($pdo, $_SESSION['user_id'], 'UPLOAD_PRESCRIPTION', 'prescriptions', $pdo->lastInsertId());
             } catch (PDOException $e) {
@@ -53,9 +55,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['prescription_image']
 if (isset($_GET['update_status']) && isset($_GET['id'])) {
     $id = $_GET['id'];
     $status = $_GET['update_status'];
+    $pharma_id = $_SESSION['pharmacy_id'];
     try {
-        $stmt = $pdo->prepare("UPDATE prescriptions SET status = ? WHERE id = ?");
-        $stmt->execute([$status, $id]);
+        // Restrict update by pharmacy_id if not admin
+        if (has_role('admin')) {
+            $stmt = $pdo->prepare("UPDATE prescriptions SET status = ? WHERE id = ?");
+            $stmt->execute([$status, $id]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE prescriptions SET status = ? WHERE id = ? AND pharmacy_id = ?");
+            $stmt->execute([$status, $id, $pharma_id]);
+        }
         $message = "Prescription status updated to " . ucfirst($status);
         log_activity($pdo, $_SESSION['user_id'], 'UPDATE_PRESCRIPTION_STATUS', 'prescriptions', $id, null, $status);
     } catch (PDOException $e) {
@@ -63,12 +72,26 @@ if (isset($_GET['update_status']) && isset($_GET['id'])) {
     }
 }
 
-// Fetch Prescriptions
+// Fetch Prescriptions based on role
 try {
-    $stmt = $pdo->query("SELECT * FROM prescriptions ORDER BY created_at DESC");
+    if (has_role('admin')) {
+        $stmt = $pdo->query("SELECT p.*, ph.name as pharmacy_name FROM prescriptions p LEFT JOIN pharmacies ph ON p.pharmacy_id = ph.id ORDER BY ph.name ASC, p.created_at DESC");
+    } elseif (has_role('pharmacist') || has_role('cashier')) {
+        $stmt = $pdo->prepare("SELECT p.*, ph.name as pharmacy_name FROM prescriptions p LEFT JOIN pharmacies ph ON p.pharmacy_id = ph.id WHERE p.pharmacy_id = ? ORDER BY p.created_at DESC");
+        $stmt->execute([$_SESSION['pharmacy_id']]);
+    } else { // Customer
+        $stmt = $pdo->prepare("SELECT p.*, ph.name as pharmacy_name FROM prescriptions p LEFT JOIN pharmacies ph ON p.pharmacy_id = ph.id WHERE p.user_id = ? ORDER BY p.created_at DESC");
+        $stmt->execute([$_SESSION['user_id']]);
+    }
     $prescriptions = $stmt->fetchAll();
 } catch (PDOException $e) {
     $prescriptions = [];
+}
+
+// Fetch Pharmacies for Customers to choose from
+$pharmacies = [];
+if (has_role('customer')) {
+    $pharmacies = $pdo->query("SELECT id, name FROM pharmacies WHERE status = 'active' ORDER BY name ASC")->fetchAll();
 }
 
 include 'includes/templates/header.php';
@@ -76,11 +99,13 @@ include 'includes/templates/header.php';
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4">
     <h1 class="h2">Prescriptions</h1>
+    <?php if (has_role('customer')): ?>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+        <button type="button" class="btn btn-primary shadow-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#uploadModal">
             <i class="fas fa-upload me-1"></i> Upload New Prescription
         </button>
     </div>
+    <?php endif; ?>
 </div>
 
 <?php if ($message): ?>
@@ -90,12 +115,84 @@ include 'includes/templates/header.php';
     </div>
 <?php endif; ?>
 
+<?php
+// Group prescriptions if Platform Admin
+$grouped_prescriptions = [];
+if (has_role('admin') && !$_SESSION['pharmacy_id']) {
+    foreach ($prescriptions as $p) {
+        $grouped_prescriptions[$p['pharmacy_name'] ?? 'General'][] = $p;
+    }
+}
+?>
+
 <div class="row">
     <?php if (empty($prescriptions)): ?>
     <div class="col-12 text-center py-5 text-muted">
         <i class="fas fa-file-medical fa-4x mb-3 opacity-25"></i>
-        <p>No prescriptions found. Use the upload button to add one.</p>
+        <p>No prescriptions found. <?php echo has_role('customer') ? 'Use the upload button to add one.' : ''; ?></p>
     </div>
+    <?php elseif (has_role('admin') && !$_SESSION['pharmacy_id']): ?>
+        <!-- Grouped View for Platform Admin -->
+        <div class="accordion border-0 shadow-sm rounded-4 overflow-hidden" id="prescAccordion">
+            <?php 
+            $p_idx = 0;
+            foreach ($grouped_prescriptions as $ph_name => $p_items): 
+                $p_idx++;
+                $p_acc_id = "prescCollapse" . $p_idx;
+            ?>
+            <div class="accordion-item border-0 border-bottom">
+                <h2 class="accordion-header">
+                    <button class="accordion-button <?php echo ($p_idx > 1) ? 'collapsed' : ''; ?> fw-bold py-3" type="button" data-bs-toggle="collapse" data-bs-target="#<?php echo $p_acc_id; ?>">
+                        <i class="fas fa-hospital me-2 text-primary"></i> <?php echo $ph_name; ?> 
+                        <span class="badge bg-light text-dark border ms-2"><?php echo count($p_items); ?> Prescriptions</span>
+                    </button>
+                </h2>
+                <div id="<?php echo $p_acc_id; ?>" class="accordion-collapse collapse <?php echo ($p_idx == 1) ? 'show' : ''; ?>" data-bs-parent="#prescAccordion">
+                    <div class="accordion-body p-4 bg-light">
+                        <div class="row">
+                            <?php foreach ($p_items as $p): 
+                                $status_color = ($p['status'] == 'filled') ? 'success' : (($p['status'] == 'pending') ? 'warning' : 'danger');
+                            ?>
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-img-top position-relative overflow-hidden" style="height: 150px; background: #eee;">
+                                        <?php if (str_ends_with($p['image_path'], '.pdf')): ?>
+                                            <div class="d-flex align-items-center justify-content-center h-100">
+                                                <i class="fas fa-file-pdf fa-4x text-danger"></i>
+                                            </div>
+                                        <?php else: ?>
+                                            <img src="<?php echo $p['image_path']; ?>" class="w-100 h-100 object-fit-cover" alt="Prescription Image" onerror="this.src='https://via.placeholder.com/400x200?text=No+Preview'">
+                                        <?php endif; ?>
+                                        <span class="badge bg-<?php echo $status_color; ?> position-absolute top-0 end-0 m-3 shadow-sm">
+                                            <?php echo ucfirst($p['status']); ?>
+                                        </span>
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="card-title fw-bold mb-1"><?php echo $p['patient_name']; ?></h6>
+                                        <p class="text-muted small mb-3">
+                                            <i class="fas fa-user-md me-1"></i> Dr. <?php echo $p['doctor_name']; ?>
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center mt-3">
+                                            <a href="<?php echo $p['image_path']; ?>" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">Status</button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                                    <li><a class="dropdown-item" href="prescriptions.php?update_status=pending&id=<?php echo $p['id']; ?>">Pending</a></li>
+                                                    <li><a class="dropdown-item" href="prescriptions.php?update_status=filled&id=<?php echo $p['id']; ?>">Filled</a></li>
+                                                    <li><a class="dropdown-item" href="prescriptions.php?update_status=cancelled&id=<?php echo $p['id']; ?>">Cancelled</a></li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
     <?php else: foreach ($prescriptions as $p): 
         $status_color = ($p['status'] == 'filled') ? 'success' : (($p['status'] == 'pending') ? 'warning' : 'danger');
     ?>
@@ -115,6 +212,9 @@ include 'includes/templates/header.php';
             </div>
             <div class="card-body">
                 <h5 class="card-title fw-bold mb-1"><?php echo $p['patient_name']; ?></h5>
+                <p class="text-primary small fw-bold mb-2">
+                    <i class="fas fa-hospital me-1"></i> <?php echo $p['pharmacy_name'] ?: 'General'; ?>
+                </p>
                 <p class="text-muted small mb-3">
                     <i class="fas fa-user-md me-1"></i> Dr. <?php echo $p['doctor_name']; ?> | 
                     <i class="fas fa-calendar-alt ms-2 me-1"></i> <?php echo date('M d, Y', strtotime($p['prescription_date'])); ?>
@@ -125,12 +225,13 @@ include 'includes/templates/header.php';
                         <a href="<?php echo $p['image_path']; ?>" target="_blank" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-eye"></i> View
                         </a>
-                        <?php if ($p['status'] == 'pending'): ?>
+                        <?php if ($p['status'] == 'pending' && !has_role('customer')): ?>
                         <a href="prescriptions.php?update_status=filled&id=<?php echo $p['id']; ?>" class="btn btn-sm btn-success">
                             <i class="fas fa-check"></i> Fill
                         </a>
                         <?php endif; ?>
                     </div>
+                    <?php if (!has_role('customer')): ?>
                     <div class="dropdown">
                         <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
                             Status
@@ -141,6 +242,7 @@ include 'includes/templates/header.php';
                             <li><a class="dropdown-item" href="prescriptions.php?update_status=cancelled&id=<?php echo $p['id']; ?>">Cancelled</a></li>
                         </ul>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -175,6 +277,16 @@ include 'includes/templates/header.php';
                     <div class="mb-3">
                         <label class="form-label fw-bold">Doctor Name</label>
                         <input type="text" name="doctor_name" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Pharmacy</label>
+                        <select name="pharmacy_id" class="form-select" required>
+                            <option value="">-- Choose a Pharmacy --</option>
+                            <?php foreach ($pharmacies as $ph): ?>
+                                <option value="<?php echo $ph['id']; ?>"><?php echo $ph['name']; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text small">Your prescription will be sent to this pharmacy for verification.</div>
                     </div>
                     <div class="mb-0">
                         <label class="form-label fw-bold">Upload Image/PDF</label>

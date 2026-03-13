@@ -14,8 +14,8 @@ $active_page = 'inventory';
 $message = '';
 $error = '';
 
-// Handle Add/Edit Medicine
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Handle Add/Edit Medicine (Restricted to Staff)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist', 'cashier'])) {
     if (isset($_POST['action'])) {
         $name = sanitize_input($_POST['name']);
         $generic_name = sanitize_input($_POST['generic_name']);
@@ -32,8 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($_POST['action'] === 'add') {
             try {
-                $stmt = $pdo->prepare("INSERT INTO medicines (name, generic_name, category, supplier_id, price, cost_price, quantity, unit, reorder_level, expiry_date, barcode, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description]);
+                $stmt = $pdo->prepare("INSERT INTO medicines (name, generic_name, category, supplier_id, price, cost_price, quantity, unit, reorder_level, expiry_date, barcode, description, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $_SESSION['pharmacy_id']]);
                 
                 log_activity($pdo, $_SESSION['user_id'], 'ADD_MEDICINE', 'medicines', $pdo->lastInsertId());
                 $message = "Medicine added successfully!";
@@ -43,8 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($_POST['action'] === 'edit') {
             $id = $_POST['medicine_id'];
             try {
-                $stmt = $pdo->prepare("UPDATE medicines SET name=?, generic_name=?, category=?, supplier_id=?, price=?, cost_price=?, quantity=?, unit=?, reorder_level=?, expiry_date=?, barcode=?, description=? WHERE id=?");
-                $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $id]);
+                $stmt = $pdo->prepare("UPDATE medicines SET name=?, generic_name=?, category=?, supplier_id=?, price=?, cost_price=?, quantity=?, unit=?, reorder_level=?, expiry_date=?, barcode=?, description=? WHERE id=? AND pharmacy_id=?");
+                $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $id, $_SESSION['pharmacy_id']]);
                 
                 log_activity($pdo, $_SESSION['user_id'], 'UPDATE_MEDICINE', 'medicines', $id);
                 $message = "Medicine updated successfully!";
@@ -55,12 +55,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Handle Delete
-if (isset($_GET['delete'])) {
+// Handle Delete (Restricted to Staff)
+if (isset($_GET['delete']) && has_role(['admin', 'pharmacist', 'cashier'])) {
     $id = $_GET['delete'];
     try {
-        $stmt = $pdo->prepare("DELETE FROM medicines WHERE id = ?");
-        $stmt->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM medicines WHERE id = ? AND pharmacy_id = ?");
+        $stmt->execute([$id, $_SESSION['pharmacy_id']]);
         log_activity($pdo, $_SESSION['user_id'], 'DELETE_MEDICINE', 'medicines', $id);
         $message = "Medicine deleted successfully!";
     } catch (PDOException $e) {
@@ -68,30 +68,67 @@ if (isset($_GET['delete'])) {
     }
 }
 
-// Fetch Medicines
+// Fetch Medicines (Filtered by Pharmacy)
+$pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
 try {
-    $stmt = $pdo->query("SELECT m.*, s.name as supplier_name FROM medicines m LEFT JOIN suppliers s ON m.supplier_id = s.id ORDER BY m.name ASC");
+    if (has_role('customer')) {
+        // If customer, show drugs from a selected pharmacy or all active ones
+        $selected_pharmacy = $_GET['pharma'] ?? null;
+        if ($selected_pharmacy) {
+            $stmt = $pdo->prepare("SELECT m.*, p.name as pharmacy_name FROM medicines m JOIN pharmacies p ON m.pharmacy_id = p.id WHERE m.pharmacy_id = ? AND p.status = 'active' ORDER BY m.name ASC");
+            $stmt->execute([$selected_pharmacy]);
+        } else {
+            $stmt = $pdo->query("SELECT m.*, p.name as pharmacy_name FROM medicines m JOIN pharmacies p ON m.pharmacy_id = p.id WHERE p.status = 'active' ORDER BY m.name ASC");
+        }
+    } elseif (has_role('admin') && !$pharmacy_id) {
+        // Platform Admin - Fetch all
+        $stmt = $pdo->query("SELECT m.*, p.name as pharmacy_name, s.name as supplier_name 
+                             FROM medicines m 
+                             JOIN pharmacies p ON m.pharmacy_id = p.id 
+                             LEFT JOIN suppliers s ON m.supplier_id = s.id 
+                             ORDER BY p.name ASC, m.name ASC");
+    } else {
+        $stmt = $pdo->prepare("SELECT m.*, s.name as supplier_name FROM medicines m LEFT JOIN suppliers s ON m.supplier_id = s.id WHERE m.pharmacy_id = ? ORDER BY m.name ASC");
+        $stmt->execute([$pharmacy_id]);
+    }
     $medicines = $stmt->fetchAll();
-    
-    // Fetch Suppliers for dropdown
-    $stmt = $pdo->query("SELECT id, name FROM suppliers ORDER BY name ASC");
-    $suppliers = $stmt->fetchAll();
 } catch (PDOException $e) {
     $medicines = [];
-    $suppliers = [];
-    $error = "Database tables might not be ready. Please run <a href='install.php'>install.php</a> first.";
+    $error = "Error fetching medicines: " . $e->getMessage();
 }
+
+// Fetch Suppliers (Filtered by Pharmacy)
+try {
+    $stmt = $pdo->prepare("SELECT id, name FROM suppliers WHERE pharmacy_id = ? ORDER BY name ASC");
+    $stmt->execute([$pharmacy_id]);
+    $suppliers = $stmt->fetchAll();
+} catch (PDOException $e) {
+    $suppliers = [];
+    $error = "Error fetching suppliers: " . $e->getMessage();
+}
+
+if ($error) {
+    // If there's an error from fetching, it might override previous messages.
+    // For now, we'll let it override or append if needed.
+    // A more robust solution would be to manage an array of errors.
+    if (strpos($error, "Database tables might not be ready") === false) {
+        $error = "Database tables might not be ready. Please run <a href='install.php'>install.php</a> first.";
+    }
+}
+
 
 include 'includes/templates/header.php';
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4">
     <h1 class="h2"><?php echo __('medicine_inventory'); ?></h1>
+    <?php if (has_role(['admin', 'pharmacist', 'cashier'])): ?>
     <div class="btn-toolbar mb-2 mb-md-0">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#medicineModal">
             <i class="fas fa-plus me-1"></i> <?php echo __('add_medicine'); ?>
         </button>
     </div>
+    <?php endif; ?>
 </div>
 
 <?php if ($message): ?>
@@ -108,48 +145,145 @@ include 'includes/templates/header.php';
     </div>
 <?php endif; ?>
 
+<?php
+// Group medicines if Platform Admin
+$grouped_inventory = [];
+if (has_role('admin') && !$pharmacy_id) {
+    foreach ($medicines as $m) {
+        $grouped_inventory[$m['pharmacy_name']][] = $m;
+    }
+}
+?>
+
+<?php if (has_role('admin') && !$pharmacy_id): ?>
+<div class="accordion border-0 shadow-sm rounded-4 overflow-hidden" id="inventoryAccordion">
+    <?php if (empty($grouped_inventory)): ?>
+        <div class="card border-0 p-5 text-center text-muted">No medicines found in the system.</div>
+    <?php else: 
+        $idx = 0;
+        foreach ($grouped_inventory as $ph_name => $items): 
+            $idx++;
+            $acc_id = "invCollapse" . $idx;
+    ?>
+    <div class="accordion-item border-0 border-bottom">
+        <h2 class="accordion-header">
+            <button class="accordion-button <?php echo ($idx > 1) ? 'collapsed' : ''; ?> fw-bold py-3" type="button" data-bs-toggle="collapse" data-bs-target="#<?php echo $acc_id; ?>">
+                <i class="fas fa-hospital me-2 text-primary"></i> <?php echo $ph_name; ?> 
+                <span class="badge bg-light text-dark border ms-2"><?php echo count($items); ?> Items</span>
+            </button>
+        </h2>
+        <div id="<?php echo $acc_id; ?>" class="accordion-collapse collapse <?php echo ($idx == 1) ? 'show' : ''; ?>" data-bs-parent="#inventoryAccordion">
+            <div class="accordion-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4"><?php echo __('medicine_name'); ?></th>
+                                <th><?php echo __('category'); ?></th>
+                                <th><?php echo __('supplier'); ?></th>
+                                <th><?php echo __('price'); ?></th>
+                                <th><?php echo __('quantity'); ?></th>
+                                <th class="text-end pe-4"><?php echo __('actions'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($items as $m): ?>
+                            <tr class="<?php echo ($m['quantity'] <= ($m['reorder_level'] ?? 0)) ? 'table-warning' : ''; ?>">
+                                <td class="ps-4">
+                                    <div class="fw-bold"><?php echo $m['name']; ?></div>
+                                    <div class="small text-muted"><?php echo $m['generic_name']; ?></div>
+                                </td>
+                                <td><span class="badge bg-light text-dark border"><?php echo $m['category']; ?></span></td>
+                                <td><?php echo $m['supplier_name'] ?? 'N/A'; ?></td>
+                                <td class="fw-bold"><?php echo format_currency($m['price']); ?></td>
+                                <td>
+                                    <?php echo $m['quantity']; ?> <?php echo $m['unit']; ?>
+                                    <?php if (isset($m['reorder_level']) && $m['quantity'] <= $m['reorder_level']): ?>
+                                        <i class="fas fa-exclamation-triangle text-warning ms-1" title="Low Stock"></i>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-info edit-medicine" data-json='<?php echo json_encode($m); ?>'>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <a href="inventory.php?delete=<?php echo $m['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this medicine?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; endif; ?>
+</div>
+
+<?php else: ?>
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4">Medicine Name</th>
-                        <th>Generic Name</th>
-                        <th>Category</th>
-                        <th>Supplier</th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th>Expiry</th>
-                        <th class="text-center pe-4">Actions</th>
+                        <th class="ps-4"><?php echo __('medicine_name'); ?></th>
+                        <th><?php echo __('category'); ?></th>
+                        <?php if (has_role('customer')): ?>
+                        <th>Pharmacy</th>
+                        <?php else: ?>
+                        <th><?php echo __('supplier'); ?></th>
+                        <?php endif; ?>
+                        <th><?php echo __('price'); ?></th>
+                        <th><?php echo __('quantity'); ?></th>
+                        <th class="text-end pe-4"><?php echo __('actions'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($medicines)): ?>
-                    <tr><td colspan="8" class="text-center py-5 text-muted">No medicines found in inventory.</td></tr>
-                    <?php else: foreach ($medicines as $med): 
-                        $stock_class = ($med['quantity'] <= $med['reorder_level']) ? 'badge bg-danger' : 'badge bg-success';
-                        $expiry_date = strtotime($med['expiry_date']);
-                        $expiry_class = ($expiry_date < time()) ? 'text-danger fw-bold' : '';
-                    ?>
-                    <tr>
+                    <tr><td colspan="6" class="text-center py-5 text-muted">No medicines found.</td></tr>
+                    <?php else: foreach ($medicines as $m): ?>
+                    <tr class="<?php echo ($m['quantity'] <= ($m['reorder_level'] ?? 0)) ? 'table-warning' : ''; ?>">
                         <td class="ps-4">
-                            <div class="fw-bold"><?php echo $med['name']; ?></div>
-                            <div class="small text-muted"><?php echo $med['barcode']; ?></div>
+                            <div class="fw-bold"><?php echo $m['name']; ?></div>
+                            <div class="small text-muted"><?php echo $m['generic_name']; ?></div>
                         </td>
-                        <td><?php echo $med['generic_name']; ?></td>
-                        <td><span class="badge bg-light text-dark border"><?php echo $med['category']; ?></span></td>
-                        <td><?php echo $med['supplier_name'] ?: 'None'; ?></td>
-                        <td><?php echo format_currency($med['price']); ?></td>
-                        <td><span class="<?php echo $stock_class; ?>"><?php echo $med['quantity']; ?> <?php echo $med['unit']; ?></span></td>
-                        <td class="<?php echo $expiry_class; ?>"><?php echo date('M d, Y', $expiry_date); ?></td>
-                        <td class="text-center pe-4">
-                            <button class="btn btn-sm btn-outline-info me-1 edit-med" data-json='<?php echo json_encode($med); ?>'>
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <a href="inventory.php?delete=<?php echo $med['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this medicine?')">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                        <td><span class="badge bg-light text-dark border"><?php echo $m['category']; ?></span></td>
+                        <?php if (has_role('customer')): ?>
+                        <td><span class="text-primary fw-bold"><?php echo $m['pharmacy_name'] ?? 'Unknown'; ?></span></td>
+                        <?php else: ?>
+                        <td><?php echo $m['supplier_name'] ?? 'N/A'; ?></td>
+                        <?php endif; ?>
+                        <td class="fw-bold"><?php echo format_currency($m['price']); ?></td>
+                        <td>
+                            <?php echo $m['quantity']; ?> <?php echo $m['unit']; ?>
+                            <?php if (isset($m['reorder_level']) && $m['quantity'] <= $m['reorder_level']): ?>
+                                <i class="fas fa-exclamation-triangle text-warning ms-1" title="Low Stock"></i>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-end pe-4">
+                            <?php if (has_role('customer')): ?>
+                                <button class="btn btn-primary btn-sm rounded-pill px-3 add-to-cart-btn" 
+                                        data-id="<?php echo $m['id']; ?>" 
+                                        data-name="<?php echo $m['name']; ?>" 
+                                        data-price="<?php echo $m['price']; ?>" 
+                                        data-pharma-id="<?php echo $m['pharmacy_id']; ?>"
+                                        data-pharma-name="<?php echo $m['pharmacy_name']; ?>">
+                                    <i class="fas fa-cart-plus me-1"></i> Add to Cart
+                                </button>
+                            <?php else: ?>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-info edit-medicine" data-json='<?php echo json_encode($m); ?>'>
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <a href="inventory.php?delete=<?php echo $m['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this medicine?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; endif; ?>
@@ -158,6 +292,7 @@ include 'includes/templates/header.php';
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <!-- Add/Edit Medicine Modal -->
 <div class="modal fade" id="medicineModal" tabindex="-1" aria-labelledby="medicineModalLabel" aria-hidden="true">
@@ -243,41 +378,101 @@ include 'includes/templates/header.php';
     </div>
 </div>
 
+<!-- Order Modal (For Customers) -->
+<div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header pink-gradient text-white">
+                <h5 class="modal-title">Add to Cart</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="cart.php" method="POST">
+                <input type="hidden" name="action" value="add">
+                <input type="hidden" name="id" id="cart-med-id">
+                <input type="hidden" name="name" id="cart-med-name-val">
+                <input type="hidden" name="price" id="cart-med-price-val">
+                <input type="hidden" name="pharmacy_id" id="cart-pharma-id">
+                <input type="hidden" name="pharmacy_name" id="cart-pharma-name">
+                <div class="modal-body p-4">
+                    <h6 id="order-med-name" class="fw-bold mb-3"></h6>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" required>
+                    </div>
+                    <div class="text-muted small">
+                        Total: <span id="order-total" class="fw-bold text-primary"></span>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 shadow-sm">Add to Cart</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+?>
+
+<?php if (has_role('customer')): ?>
+<!-- Floating Cart Icon -->
+<a href="cart.php" class="btn btn-primary rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center" 
+   style="bottom: 30px; right: 30px; width: 60px; height: 60px; z-index: 1000; transition: transform 0.3s;">
+    <i class="fas fa-shopping-cart fa-lg"></i>
+    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-count">
+        <?php echo count($_SESSION['cart'] ?? []); ?>
+    </span>
+</a>
+<style>
+    .btn-primary:hover { transform: scale(1.1); }
+</style>
+<?php endif; ?>
+
 <?php 
-$extra_js = '
+$extra_js = "
 <script>
-    $(document).ready(function() {
-        $(".edit-med").click(function() {
-            const data = $(this).data("json");
-            $("#form-action").val("edit");
-            $("#medicine_id").val(data.id);
-            $("#med-name").val(data.name);
-            $("#med-generic").val(data.generic_name);
-            $("#med-cat").val(data.category);
-            $("#med-sup").val(data.supplier_id);
-            $("#med-barcode").val(data.barcode);
-            $("#med-cost").val(data.cost_price);
-            $("#med-price").val(data.price);
-            $("#med-qty").val(data.quantity);
-            $("#med-unit").val(data.unit);
-            $("#med-reorder").val(data.reorder_level);
-            $("#med-expiry").val(data.expiry_date);
-            $("#med-desc").val(data.description);
-            
-            $("#medicineModalLabel").text("Edit Medicine: " + data.name);
-            $("#save-btn").text("Update Medicine");
-            $("#medicineModal").modal("show");
-        });
+$(document).ready(function() {
+    $('.edit-medicine').click(function() {
+        const data = $(this).data('json');
+        $('#form-action').val('edit');
+        $('#medicine_id').val(data.id);
+        $('#med-name').val(data.name);
+        $('#med-generic').val(data.generic_name);
+        $('#med-cat').val(data.category);
+        $('#med-supplier').val(data.supplier_id);
+        $('#med-price').val(data.price);
+        $('#med-cost').val(data.cost_price);
+        $('#med-qty').val(data.quantity);
+        $('#med-unit').val(data.unit);
+        $('#med-reorder').val(data.reorder_level);
+        $('#med-expiry').val(data.expiry_date);
+        $('#med-barcode').val(data.barcode);
+        $('#med-desc').val(data.description);
         
-        // Modal reset on close
-        $("#medicineModal").on("hidden.bs.modal", function () {
-            $("#form-action").val("add");
-            $("#medicineModalLabel").text("Medicine Information");
-            $("#save-btn").text("Save Medicine");
-            $("form")[0].reset();
-        });
+        $('#medicineModalLabel').text('Edit Medicine: ' + data.name);
+        $('#save-btn').text('Update Medicine');
+        $('#medicineModal').modal('show');
     });
+
+    $('.add-to-cart-btn').click(function() {
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        const price = $(this).data('price');
+        const pharma_id = $(this).data('pharma-id');
+        const pharma_name = $(this).data('pharma-name');
+        
+        $('#cart-med-id').val(id);
+        $('#cart-med-name-val').val(name);
+        $('#cart-med-price-val').val(price);
+        $('#cart-pharma-id').val(pharma_id);
+        $('#cart-pharma-name').val(pharma_name);
+        
+        $('#order-med-name').text(name);
+        $('#order-total').text(new Intl.NumberFormat().format(price) + ' FCFA');
+        
+        $('#orderModal').modal('show');
+    });
+});
 </script>
-';
+";
 include 'includes/templates/footer.php'; 
 ?>

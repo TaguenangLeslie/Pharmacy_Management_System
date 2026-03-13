@@ -23,19 +23,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
 
         $invoice_no = generate_invoice_no();
         $user_id = $_SESSION['user_id'];
-        
+        $ph_id = $_SESSION['pharmacy_id'];
+
+        // Platform Admin Override
+        if (!$ph_id && has_role('admin') && !empty($_POST['pharmacy_id'])) {
+            $ph_id = $_POST['pharmacy_id'];
+        }
+
+        if (!$ph_id) {
+            throw new Exception("Target pharmacy is not defined.");
+        }
+
         // Calculate totals
         $subtotal = 0;
         foreach ($cart_data as $item) {
             $subtotal += $item['price'] * $item['quantity'];
         }
-        
-        $tax = 0; // Default 0% for now
-        $grand_total = $subtotal + $tax;
+        $discount = 0; 
+        $grand_total = $subtotal - $discount;
 
-        // 1. Insert into sales table
-        $stmt = $pdo->prepare("INSERT INTO sales (invoice_no, customer_id, user_id, customer_name, total_amount, tax, grand_total, payment_method, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid')");
-        $stmt->execute([$invoice_no, $customer_id, $user_id, $customer_name, $subtotal, $tax, $grand_total, $payment_method]);
+        // 1. Insert Sales Record
+        $stmt = $pdo->prepare("INSERT INTO sales (invoice_no, customer_id, user_id, customer_name, total_amount, discount, grand_total, payment_method, payment_status, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $invoice_no,
+            $customer_id,
+            $user_id,
+            $customer_name,
+            $subtotal,
+            $discount,
+            $grand_total,
+            $payment_method,
+            'paid',
+            $ph_id
+        ]);
         $sale_id = $pdo->lastInsertId();
 
         // Update Loyalty Points if customer is known
@@ -47,14 +67,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
 
         // 2. Insert into sale_items and update stock
         $stmt_item = $pdo->prepare("INSERT INTO sale_items (sale_id, medicine_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)");
-        $stmt_update_stock = $pdo->prepare("UPDATE medicines SET quantity = quantity - ? WHERE id = ?");
+        $stmt_update_stock = $pdo->prepare("UPDATE medicines SET quantity = quantity - ? WHERE id = ? AND pharmacy_id = ?");
 
         foreach ($cart_data as $item) {
             $item_total = $item['price'] * $item['quantity'];
             $stmt_item->execute([$sale_id, $item['id'], $item['quantity'], $item['price'], $item_total]);
             
-            // Deduct stock
-            $stmt_update_stock->execute([$item['quantity'], $item['id']]);
+            // Deduct stock (Isolated by pharmacy_id)
+            $stmt_update_stock->execute([$item['quantity'], $item['id'], $ph_id]);
         }
 
         $pdo->commit();

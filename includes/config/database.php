@@ -27,7 +27,17 @@ if (!isset($_SESSION['csrf_token'])) {
 }
 
 define('APP_NAME', 'PharmaCare');
-define('BASE_URL', 'http://localhost/Pharmacy_Management_System/');
+
+// Robust Dynamic BASE_URL Detection
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+$host = $_SERVER['HTTP_HOST'];
+// Calculate the project's base directory relative to the document root
+$doc_root = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
+$proj_root = str_replace('\\', '/', realpath(__DIR__ . '/../../'));
+$base_dir = str_replace($doc_root, '', $proj_root);
+$base_url = $protocol . "://" . $host . rtrim($base_dir, '/') . "/";
+define('BASE_URL', $base_url);
+
 define('UPLOAD_DIR', __DIR__ . '/../../uploads/');
 
 // Color Palette (Pink Theme)

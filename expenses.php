@@ -20,17 +20,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $amount = $_POST['amount'];
     $description = sanitize_input($_POST['description']);
     $date = $_POST['date'];
+    $pharma_id = $_SESSION['pharmacy_id'];
     
     try {
         if (isset($_POST['action']) && $_POST['action'] === 'edit') {
             $id = $_POST['expense_id'];
-            $stmt = $pdo->prepare("UPDATE expenses SET category=?, amount=?, description=?, date=? WHERE id=?");
-            $stmt->execute([$category, $amount, $description, $date, $id]);
+            $stmt = $pdo->prepare("UPDATE expenses SET category=?, amount=?, description=?, date=? WHERE id=? AND (pharmacy_id = ? OR ? IS NULL)");
+            $stmt->execute([$category, $amount, $description, $date, $id, $pharma_id, $pharma_id]);
             log_activity($pdo, $_SESSION['user_id'], 'UPDATE_EXPENSE', 'expenses', $id);
             $message = "Expense updated successfully!";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO expenses (category, amount, description, date, user_id) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$category, $amount, $description, $date, $_SESSION['user_id']]);
+            $stmt = $pdo->prepare("INSERT INTO expenses (category, amount, description, date, user_id, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$category, $amount, $description, $date, $_SESSION['user_id'], $pharma_id]);
             log_activity($pdo, $_SESSION['user_id'], 'ADD_EXPENSE', 'expenses', $pdo->lastInsertId());
             $message = "Expense recorded successfully!";
         }
@@ -42,9 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Handle Delete
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
+    $pharma_id = $_SESSION['pharmacy_id'];
     try {
-        $stmt = $pdo->prepare("DELETE FROM expenses WHERE id = ?");
-        $stmt->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM expenses WHERE id = ? AND (pharmacy_id = ? OR ? IS NULL)");
+        $stmt->execute([$id, $pharma_id, $pharma_id]);
         log_activity($pdo, $_SESSION['user_id'], 'DELETE_EXPENSE', 'expenses', $id);
         $message = "Expense deleted successfully!";
     } catch (PDOException $e) {
@@ -54,7 +56,18 @@ if (isset($_GET['delete'])) {
 
 // Fetch Expenses
 try {
-    $stmt = $pdo->query("SELECT e.*, u.full_name as recorder FROM expenses e LEFT JOIN users u ON e.user_id = u.id ORDER BY date DESC");
+    $pharma_id = $_SESSION['pharmacy_id'];
+    if ($pharma_id) {
+        $stmt = $pdo->prepare("SELECT e.*, u.full_name as recorder FROM expenses e LEFT JOIN users u ON e.user_id = u.id WHERE e.pharmacy_id = ? ORDER BY date DESC");
+        $stmt->execute([$pharma_id]);
+    } else {
+        // Platform Admin - Grouped
+        $stmt = $pdo->query("SELECT e.*, u.full_name as recorder, ph.name as pharmacy_name 
+                             FROM expenses e 
+                             LEFT JOIN users u ON e.user_id = u.id 
+                             JOIN pharmacies ph ON e.pharmacy_id = ph.id 
+                             ORDER BY ph.name ASC, e.date DESC");
+    }
     $expenses = $stmt->fetchAll();
 } catch (PDOException $e) {
     $expenses = [];
@@ -99,47 +112,121 @@ include 'includes/templates/header.php';
     </div>
 </div>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="ps-4">Date</th>
-                        <th>Category</th>
-                        <th>Description</th>
-                        <th>Recorder</th>
-                        <th>Amount</th>
-                        <th class="text-end pe-4">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($expenses)): ?>
-                    <tr><td colspan="6" class="text-center py-5 text-muted">No expenses recorded yet.</td></tr>
-                    <?php else: foreach ($expenses as $e): ?>
-                    <tr>
-                        <td class="ps-4"><?php echo date('M d, Y', strtotime($e['date'])); ?></td>
-                        <td><span class="badge bg-light text-dark border"><?php echo ucfirst($e['category']); ?></span></td>
-                        <td><?php echo $e['description']; ?></td>
-                        <td><small class="text-muted"><?php echo $e['recorder']; ?></small></td>
-                        <td class="fw-bold text-danger"><?php echo format_currency($e['amount']); ?></td>
-                        <td class="text-end pe-4">
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-info edit-expense" data-json='<?php echo json_encode($e); ?>'>
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <a href="expenses.php?delete=<?php echo $e['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this record?')">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; endif; ?>
-                </tbody>
-            </table>
+<?php
+// Grouping logic for Platform Admin
+$grouped_expenses = [];
+if (!$_SESSION['pharmacy_id']) {
+    foreach ($expenses as $e) {
+        $ph_name = $e['pharmacy_name'] ?? 'Unknown Pharmacy';
+        $grouped_expenses[$ph_name][] = $e;
+    }
+}
+?>
+
+<?php if (empty($_SESSION['pharmacy_id'])): ?>
+    <!-- Platform Admin View with Accordions -->
+    <div class="accordion border-0 shadow-sm rounded-4 overflow-hidden" id="expenseAccordion">
+        <?php if (empty($grouped_expenses)): ?>
+            <div class="card border-0 p-5 text-center">
+                <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No expenses recorded across any pharmacy.</p>
+            </div>
+        <?php else: $idx = 0; foreach ($grouped_expenses as $ph_name => $items): $idx++; ?>
+            <div class="accordion-item border-0 border-bottom">
+                <h2 class="accordion-header">
+                    <button class="accordion-button <?php echo $idx > 1 ? 'collapsed' : ''; ?> py-3 ps-4" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?php echo $idx; ?>">
+                        <span class="fw-bold text-primary"><i class="fas fa-hospital me-2"></i> <?php echo $ph_name; ?></span>
+                        <span class="badge bg-light text-dark ms-3 border"><?php echo count($items); ?> Records</span>
+                    </button>
+                </h2>
+                <div id="collapse<?php echo $idx; ?>" class="accordion-collapse collapse <?php echo $idx === 1 ? 'show' : ''; ?>" data-bs-parent="#expenseAccordion">
+                    <div class="accordion-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light small">
+                                    <tr>
+                                        <th class="ps-4">Date</th>
+                                        <th>Category</th>
+                                        <th>Description</th>
+                                        <th>Recorder</th>
+                                        <th>Amount</th>
+                                        <th class="text-end pe-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($items as $e): ?>
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="fw-bold"><?php echo date('M d, Y', strtotime($e['date'])); ?></div>
+                                        </td>
+                                        <td><span class="badge bg-light text-dark border"><?php echo ucfirst($e['category']); ?></span></td>
+                                        <td class="small"><?php echo $e['description']; ?></td>
+                                        <td><small class="text-muted"><?php echo $e['recorder']; ?></small></td>
+                                        <td class="fw-bold text-danger"><?php echo format_currency($e['amount']); ?></td>
+                                        <td class="text-end pe-4">
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-info edit-expense" data-json='<?php echo json_encode($e); ?>'>
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <a href="expenses.php?delete=<?php echo $e['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this record?')">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; endif; ?>
+    </div>
+<?php else: ?>
+    <!-- Staff View with Single Table -->
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Date</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Recorder</th>
+                            <th>Amount</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($expenses)): ?>
+                        <tr><td colspan="6" class="text-center py-5 text-muted">No expenses recorded yet.</td></tr>
+                        <?php else: foreach ($expenses as $e): ?>
+                        <tr>
+                            <td class="ps-4"><?php echo date('M d, Y', strtotime($e['date'])); ?></td>
+                            <td><span class="badge bg-light text-dark border"><?php echo ucfirst($e['category']); ?></span></td>
+                            <td><?php echo $e['description']; ?></td>
+                            <td><small class="text-muted"><?php echo $e['recorder']; ?></small></td>
+                            <td class="fw-bold text-danger"><?php echo format_currency($e['amount']); ?></td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-info edit-expense" data-json='<?php echo json_encode($e); ?>'>
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <a href="expenses.php?delete=<?php echo $e['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this record?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-</div>
+<?php endif; ?>
 
 <!-- Modal -->
 <div class="modal fade" id="expenseModal" tabindex="-1" aria-hidden="true">

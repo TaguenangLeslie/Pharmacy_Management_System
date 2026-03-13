@@ -21,8 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $value = sanitize_input($value);
         
         try {
-            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
-            $stmt->execute([$key, $value, $value]);
+            $pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value, pharmacy_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+            $stmt->execute([$key, $value, $pharmacy_id, $value]);
         } catch (PDOException $e) {
             $error = "Error updating settings: " . $e->getMessage();
         }
@@ -37,8 +38,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Fetch all settings
 $settings = [];
 try {
-    $stmt = $pdo->query("SELECT * FROM settings");
+    $pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+    if ($pharmacy_id) {
+        $stmt = $pdo->prepare("SELECT * FROM settings WHERE pharmacy_id = ? OR pharmacy_id IS NULL");
+        $stmt->execute([$pharmacy_id]);
+    } else {
+        $stmt = $pdo->query("SELECT * FROM settings WHERE pharmacy_id IS NULL");
+    }
+    
     while ($row = $stmt->fetch()) {
+        // If it's a pharmacy setting, it should override the global one (which is already in the loop)
         $settings[$row['setting_key']] = $row['setting_value'];
     }
 } catch (PDOException $e) {

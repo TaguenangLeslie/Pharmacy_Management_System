@@ -17,12 +17,26 @@ $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $limit;
 
 try {
+    $pharma_id = $_SESSION['pharmacy_id'];
+    
+    // Base WHERE clause
+    $where = $pharma_id ? "WHERE l.pharmacy_id = $pharma_id" : "";
+    
     // Count total
-    $total = $pdo->query("SELECT COUNT(*) FROM audit_logs")->fetchColumn();
+    $total_stmt = $pdo->query("SELECT COUNT(*) FROM audit_logs l $where");
+    $total = $total_stmt->fetchColumn();
     $pages = ceil($total / $limit);
     
     // Fetch logs
-    $stmt = $pdo->prepare("SELECT l.*, u.username FROM audit_logs l LEFT JOIN users u ON l.user_id = u.id ORDER BY l.created_at DESC LIMIT ? OFFSET ?");
+    $sql = "SELECT l.*, u.username, p.name as pharmacy_name 
+            FROM audit_logs l 
+            LEFT JOIN users u ON l.user_id = u.id 
+            LEFT JOIN pharmacies p ON l.pharmacy_id = p.id 
+            $where 
+            ORDER BY l.created_at DESC 
+            LIMIT ? OFFSET ?";
+            
+    $stmt = $pdo->prepare($sql);
     $stmt->bindParam(1, $limit, PDO::PARAM_INT);
     $stmt->bindParam(2, $offset, PDO::PARAM_INT);
     $stmt->execute();
@@ -51,6 +65,7 @@ include 'includes/templates/header.php';
                 <thead class="bg-light">
                     <tr>
                         <th class="ps-4">Timestamp</th>
+                        <?php if (!$pharma_id): ?><th>Pharmacy</th><?php endif; ?>
                         <th>User</th>
                         <th>Action</th>
                         <th>Module</th>
@@ -65,6 +80,9 @@ include 'includes/templates/header.php';
                     <?php else: foreach ($logs as $l): ?>
                     <tr>
                         <td class="ps-4 small"><?php echo date('M d, Y H:i:s', strtotime($l['created_at'])); ?></td>
+                        <?php if (!$pharma_id): ?>
+                        <td><span class="badge bg-light text-primary border"><i class="fas fa-hospital me-1"></i> <?php echo $l['pharmacy_name'] ?: 'System'; ?></span></td>
+                        <?php endif; ?>
                         <td><span class="fw-bold"><?php echo $l['username'] ?: 'System'; ?></span></td>
                         <td>
                             <?php 

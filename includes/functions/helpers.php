@@ -41,9 +41,10 @@ if (!function_exists('generate_invoice_no')) {
 }
 
 if (!function_exists('log_activity')) {
-    function log_activity($pdo, $user_id, $action, $table_name = null, $record_id = null, $old_val = null, $new_val = null) {
+    function log_activity($pdo, $user_id, $action, $table_name = null, $record_id = null, $old_val = null, $new_val = null, $pharmacy_id = null) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO audit_logs (user_id, action, table_name, record_id, old_value, new_value, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $pharm_id = $pharmacy_id ?? $_SESSION['pharmacy_id'] ?? null;
+            $stmt = $pdo->prepare("INSERT INTO audit_logs (user_id, action, table_name, record_id, old_value, new_value, pharmacy_id, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $user_id,
                 $action,
@@ -51,11 +52,17 @@ if (!function_exists('log_activity')) {
                 $record_id,
                 $old_val,
                 $new_val,
+                $pharm_id,
                 $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'
             ]);
         } catch (PDOException $e) {
             // Silently fail or log to file
             error_log("Audit log failed: " . $e->getMessage());
         }
+    }
+}
+if (!function_exists('is_ajax')) {
+    function is_ajax() {
+        return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
     }
 }
