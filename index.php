@@ -152,7 +152,7 @@ include 'includes/templates/header.php';
             </div>
             <div class="col-lg-6 px-4 px-lg-2">
                 <div class="glass-card p-2 shadow-lg rotate-lg-negative-3 bg-light border-0">
-                    <img src="pharmacy_dashboard_v3_1773382539092.png" alt="Dashboard Preview" class="img-fluid rounded-4 shadow">
+                    <img src="assets/images/dashboard_preview.png" alt="Dashboard Preview" class="img-fluid rounded-4 shadow">
                 </div>
             </div>
         </div>
