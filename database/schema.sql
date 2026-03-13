@@ -172,3 +172,14 @@ CREATE TABLE IF NOT EXISTS expenses (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE CASCADE
 );
+
+-- 12. Support Messages Table
+CREATE TABLE IF NOT EXISTS support_messages (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    sender_name VARCHAR(150) NOT NULL,
+    sender_email VARCHAR(150) NOT NULL,
+    issue_type VARCHAR(100) DEFAULT 'General',
+    message TEXT NOT NULL,
+    is_read TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

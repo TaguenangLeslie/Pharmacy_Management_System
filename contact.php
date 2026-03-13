@@ -1,11 +1,13 @@
 <?php
 /**
- * Contact Support Page
+ * Contact Support Page - saves messages to DB for admin review
  */
 require_once 'includes/config/database.php';
 require_once 'includes/functions/helpers.php';
 
 $page_title = 'Contact Support';
+$success = false;
+$error = '';
 
 // Attempt to fetch System Name from settings
 $system_name = APP_NAME;
@@ -14,8 +16,37 @@ try {
     if ($row = $stmt->fetch()) {
         $system_name = $row['setting_value'];
     }
+    // Ensure support_messages table exists
+    $pdo->exec("CREATE TABLE IF NOT EXISTS support_messages (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        sender_name VARCHAR(150) NOT NULL,
+        sender_email VARCHAR(150) NOT NULL,
+        issue_type VARCHAR(100) DEFAULT 'General',
+        message TEXT NOT NULL,
+        is_read TINYINT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )");
 } catch (PDOException $e) {}
 
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $sender_name  = sanitize_input($_POST['sender_name'] ?? '');
+    $sender_email = sanitize_input($_POST['sender_email'] ?? '');
+    $issue_type   = sanitize_input($_POST['issue_type'] ?? 'General');
+    $message      = sanitize_input($_POST['message'] ?? '');
+
+    if (empty($sender_name) || empty($sender_email) || empty($message)) {
+        $error = 'Please fill in all required fields.';
+    } else {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO support_messages (sender_name, sender_email, issue_type, message) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$sender_name, $sender_email, $issue_type, $message]);
+            $success = true;
+        } catch (PDOException $e) {
+            $error = 'Failed to send message. Please try again.';
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,6 +78,16 @@ try {
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-lg-8">
+
+            <?php if ($success): ?>
+            <div class="alert alert-success rounded-4 shadow-sm border-0 text-center p-4">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5 class="fw-bold">Message Sent!</h5>
+                <p class="mb-0">Your message has been sent to our support team. We'll get back to you soon.</p>
+                <a href="login.php" class="btn btn-success rounded-pill px-4 mt-3">Back to Login</a>
+            </div>
+            <?php else: ?>
+
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="row g-0">
                     <div class="col-md-5 pink-gradient text-white p-5 d-flex flex-column justify-content-center">
@@ -77,18 +118,23 @@ try {
                     </div>
                     <div class="col-md-7 p-5 bg-white">
                         <h4 class="mb-4 fw-bold text-dark">Send a Message</h4>
+                        
+                        <?php if ($error): ?>
+                        <div class="alert alert-danger rounded-3"><?php echo $error; ?></div>
+                        <?php endif; ?>
+                        
                         <form action="contact.php" method="POST">
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-uppercase">Your Name</label>
-                                <input type="text" class="form-control bg-light border-0 py-2" placeholder="John Doe" required>
+                                <input type="text" name="sender_name" class="form-control bg-light border-0 py-2" placeholder="John Doe" value="<?php echo htmlspecialchars($_POST['sender_name'] ?? ''); ?>" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-uppercase">Email Address</label>
-                                <input type="email" class="form-control bg-light border-0 py-2" placeholder="john@example.com" required>
+                                <input type="email" name="sender_email" class="form-control bg-light border-0 py-2" placeholder="john@example.com" value="<?php echo htmlspecialchars($_POST['sender_email'] ?? ''); ?>" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-uppercase">Issue Type</label>
-                                <select class="form-select bg-light border-0 py-2">
+                                <select name="issue_type" class="form-select bg-light border-0 py-2">
                                     <option>Forgot Password / Account Recovery</option>
                                     <option>Pharmacy Verification Inquiry</option>
                                     <option>Technical Issue</option>
@@ -97,16 +143,17 @@ try {
                             </div>
                             <div class="mb-4">
                                 <label class="form-label small fw-bold text-uppercase">Message</label>
-                                <textarea class="form-control bg-light border-0" rows="4" placeholder="How can we help you today?" required></textarea>
+                                <textarea name="message" class="form-control bg-light border-0" rows="4" placeholder="How can we help you today?" required></textarea>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm" onclick="event.preventDefault(); alert('Message sent successfully! Our team will contact you soon.'); window.location.href='index.php';">
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">
                                 Send Message <i class="fas fa-paper-plane ms-2"></i>
                             </button>
                         </form>
                     </div>
                 </div>
             </div>
-            
+            <?php endif; ?>
+
             <div class="text-center mt-4">
                 <a href="login.php" class="text-muted text-decoration-none border-bottom border-secondary"><i class="fas fa-arrow-left me-1"></i> Return to Login</a>
             </div>

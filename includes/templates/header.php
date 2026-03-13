@@ -66,23 +66,33 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                         $ph_filter_nav = $ph_id_nav ? " AND pharmacy_id = $ph_id_nav" : "";
                         
                         $low_stock_count = $pdo->query("SELECT COUNT(*) FROM medicines WHERE quantity <= reorder_level $ph_filter_nav")->fetchColumn();
-                        $expiry_count = $pdo->query("SELECT COUNT(*) FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) $ph_filter_nav")->fetchColumn();
+                        $expiry_count    = $pdo->query("SELECT COUNT(*) FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) $ph_filter_nav")->fetchColumn();
                         
-                        // Pharmacy approval notification for new branch admins
+                        // Approval notification for new branch admins
                         $approval_notif = ($_SESSION['role'] === 'admin' && $_SESSION['pharmacy_id'] && !isset($_SESSION['welcome_dismissed']));
-                        $total_notifs = $low_stock_count + $expiry_count + ($approval_notif ? 1 : 0);
+                        
+                        // Unread support messages — only for global platform admin (no pharmacy_id)
+                        $support_msg_count = 0;
+                        if ($_SESSION['role'] === 'admin' && !$ph_id_nav) {
+                            try {
+                                $pdo->exec("CREATE TABLE IF NOT EXISTS support_messages (id INT PRIMARY KEY AUTO_INCREMENT, sender_name VARCHAR(150) NOT NULL, sender_email VARCHAR(150) NOT NULL, issue_type VARCHAR(100) DEFAULT 'General', message TEXT NOT NULL, is_read TINYINT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+                                $support_msg_count = $pdo->query("SELECT COUNT(*) FROM support_messages WHERE is_read = 0")->fetchColumn();
+                            } catch (PDOException $e) {}
+                        }
+                        
+                        $total_notifs = $low_stock_count + $expiry_count + ($approval_notif ? 1 : 0) + $support_msg_count;
                         ?>
                         <div class="dropdown">
                             <button class="btn btn-sm btn-white shadow-sm rounded-circle position-relative" id="notifDropdown" data-bs-toggle="dropdown" data-bs-strategy="fixed" data-bs-offset="0,8" aria-expanded="false" style="width: 35px; height: 35px;">
                                 <i class="fas fa-bell text-primary"></i>
                                 <?php if ($total_notifs > 0): ?>
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.5rem; border: 2px solid white;">
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notif-badge" style="font-size: 0.5rem; border: 2px solid white;">
                                     <?php echo $total_notifs; ?>
                                 </span>
                                 <?php endif; ?>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="width: 280px; z-index: 9999;">
-                                <li class="dropdown-header">System Notifications</li>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="width: 300px; z-index: 9999;">
+                                <li><div class="dropdown-header d-flex align-items-center justify-content-between">System Notifications <span class="badge bg-primary rounded-pill"><?php echo $total_notifs; ?></span></div></li>
                                 <?php if ($approval_notif): ?>
                                 <li>
                                     <div class="dropdown-item py-2 d-flex align-items-start">
@@ -96,7 +106,16 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                                         </div>
                                     </div>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
+                                <li><hr class="dropdown-divider my-0"></li>
+                                <?php endif; ?>
+                                <?php if ($support_msg_count > 0): ?>
+                                <li><a class="dropdown-item py-2" href="support_messages.php">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-headset text-info me-2"></i>
+                                        <div class="small"><strong class="text-info"><?php echo $support_msg_count; ?> unread</strong> support message<?php echo ($support_msg_count > 1 ? 's' : ''); ?></div>
+                                    </div>
+                                </a></li>
+                                <li><hr class="dropdown-divider my-0"></li>
                                 <?php endif; ?>
                                 <?php if ($low_stock_count > 0): ?>
                                 <li><a class="dropdown-item py-2" href="reports.php?type=stock">
@@ -115,10 +134,25 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                                 </a></li>
                                 <?php endif; ?>
                                 <?php if ($total_notifs == 0): ?>
-                                <li class="p-3 text-center text-muted small">No new notifications</li>
+                                <li class="p-3 text-center text-muted small"><i class="fas fa-bell-slash me-1"></i> No new notifications</li>
                                 <?php endif; ?>
+                                <li><hr class="dropdown-divider my-0"></li>
+                                <li class="text-center py-1">
+                                    <button class="btn btn-xs text-muted" style="font-size:0.7rem;" onclick="dismissBadge()">Mark all as read</button>
+                                </li>
                             </ul>
                         </div>
+                        <script>
+                        // Auto-hide badge when dropdown opens
+                        document.getElementById('notifDropdown').addEventListener('show.bs.dropdown', function() {
+                            dismissBadge();
+                        });
+                        function dismissBadge() {
+                            var badge = document.getElementById('notif-badge');
+                            if (badge) badge.style.display = 'none';
+                            fetch('mark_notifs_read.php');
+                        }
+                        </script>
 
                         <button id="theme-toggle" class="btn btn-sm btn-white shadow-sm rounded-circle" onclick="toggleTheme()" style="width: 35px; height: 35px;">
                             <i class="fas fa-moon text-primary"></i>
