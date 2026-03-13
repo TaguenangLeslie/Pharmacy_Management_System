@@ -56,8 +56,8 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
         <div class="row">
             <?php if (is_logged_in()): ?>
             <!-- Sidebar -->
-            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-white sidebar collapse border-end">
-                <div class="position-sticky pt-3">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-white sidebar collapse border-end" style="position: relative; z-index: 200;">
+                <div class="pt-3" style="position: sticky; top: 0; height: 100vh; overflow-y: auto; overflow-x: visible;">
                     <!-- Global Actions (Notifications & Theme Toggle) -->
                     <div class="global-actions">
                         <?php

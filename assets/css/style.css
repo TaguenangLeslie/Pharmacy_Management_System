@@ -77,12 +77,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .global-actions {
     position: relative;
-    z-index: 1055; /* above Bootstrap modals */
+    z-index: 1055;
 }
 
 .global-actions .dropdown-menu {
     z-index: 9999 !important;
-    position: fixed !important;
 }
 
 .sidebar::-webkit-scrollbar {
