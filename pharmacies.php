@@ -26,11 +26,31 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
     $status = ($action === 'approve') ? 'active' : (($action === 'suspend') ? 'suspended' : 'pending');
     
     try {
+        $pdo->beginTransaction();
+        
+        // Update Pharmacy Status
         $stmt = $pdo->prepare("UPDATE pharmacies SET status = ? WHERE id = ?");
         $stmt->execute([$status, $id]);
+        
+        // If Approved, auto-upgrade the applicant/owner to 'admin' of that pharmacy
+        if ($status === 'active') {
+            // Get owner_id
+            $stmtOwner = $pdo->prepare("SELECT owner_id, name FROM pharmacies WHERE id = ?");
+            $stmtOwner->execute([$id]);
+            $ownerData = $stmtOwner->fetch();
+            
+            if ($ownerData && $ownerData['owner_id']) {
+                $stmtUpgrade = $pdo->prepare("UPDATE users SET role = 'admin', pharmacy_id = ? WHERE id = ?");
+                $stmtUpgrade->execute([$id, $ownerData['owner_id']]);
+                log_activity($pdo, $_SESSION['user_id'], 'UPGRADE_OWNER', 'users', $ownerData['owner_id'], null, "Auto-upgraded to admin for " . $ownerData['name']);
+            }
+        }
+        
+        $pdo->commit();
         $message = "Pharmacy status updated to " . ucfirst($status) . ".";
         log_activity($pdo, $_SESSION['user_id'], 'UPDATE_PHARMACY_STATUS', 'pharmacies', $id, null, "Status changed to $status");
     } catch (PDOException $e) {
+        $pdo->rollBack();
         $error = "Error updating status: " . $e->getMessage();
     }
 }

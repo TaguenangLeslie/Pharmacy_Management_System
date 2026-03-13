@@ -11,7 +11,7 @@ require_login();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
     $cart_data = json_decode($_POST['cart_data'], true);
     $customer_id = !empty($_POST['customer_id']) ? $_POST['customer_id'] : null;
-    $customer_name = sanitize_input($_POST['customer_name']) ?: ($customer_id ? 'Known Customer' : 'Walk-in Customer');
+    $customer_name = !empty($_POST['customer_name']) ? sanitize_input($_POST['customer_name']) : (!empty($_POST['customer_search']) ? sanitize_input($_POST['customer_search']) : ($customer_id ? 'Known Customer' : 'Walk-in Customer'));
     $payment_method = $_POST['payment_method'];
     
     if (empty($cart_data)) {

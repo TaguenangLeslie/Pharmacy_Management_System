@@ -12,11 +12,11 @@ $page_title = __('pos');
 $active_page = 'pos';
 
 // Handle Pharmacy Context for Platform Admin
-$pharmacy_id = $_SESSION['pharmacy_id'];
-$is_platform_admin = (has_role('admin') && !$pharmacy_id);
+$pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+$is_platform_admin = (has_role('admin') && empty($pharmacy_id));
 
-if ($is_platform_admin && isset($_GET['pharmacy_id'])) {
-    $pharmacy_id = $_GET['pharmacy_id'];
+if ($is_platform_admin && isset($_GET['pharmacy_id']) && !empty($_GET['pharmacy_id'])) {
+    $pharmacy_id = (int)$_GET['pharmacy_id'];
 }
 
 // Fetch all medicines with stock for the POS (Filtered by Pharmacy)
@@ -172,18 +172,16 @@ include 'includes/templates/header.php';
                         <input type="hidden" name="pharmacy_id" value="<?php echo $pharmacy_id; ?>">
                         
                         <div class="mb-3">
-                            <label class="form-label small fw-bold">Select Customer</label>
-                            <select name="customer_id" id="pos-customer-id" class="form-select shadow-none">
-                                <option value="">Walk-in Customer</option>
+                            <label class="form-label small fw-bold">Select or Enter Customer <span class="text-danger">*</span></label>
+                            <input type="text" name="customer_search" id="pos-customer-search" class="form-control shadow-none" placeholder="Type name, email, or ID..." list="customer-list" required value="Walk-in Customer">
+                            <datalist id="customer-list">
                                 <?php foreach($customers as $c): ?>
-                                <option value="<?php echo $c['id']; ?>"><?php echo $c['name']; ?></option>
+                                <option value="<?php echo htmlspecialchars($c['name']); ?>" data-id="<?php echo $c['id']; ?>">
+                                    <?php echo htmlspecialchars($c['email'] ?? $c['phone']); ?>
+                                </option>
                                 <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold">Customer Display Name</label>
-                            <input type="text" name="customer_name" id="pos-customer-name" class="form-control" placeholder="Defaults to selected customer">
+                            </datalist>
+                            <input type="hidden" name="customer_id" id="pos-customer-id" value="">
                         </div>
                         
                         <div class="mb-3">
@@ -278,18 +276,37 @@ $extra_js = '
         $("#pos-search").on("keyup", function() {
             const value = $(this).val().toLowerCase();
             $(".product-row").filter(function() {
-                $(this).toggle($(this).data("name").indexOf(value) > -1)
+                // Ensure data-name exists and search matches
+                const rowName = $(this).data("name") ? $(this).data("name").toString().toLowerCase() : "";
+                $(this).toggle(rowName.indexOf(value) > -1);
             });
         });
 
         // Customer Selection Auto-fill
-        $("#pos-customer-id").on("change", function() {
-            const selectedText = $(this).find("option:selected").text();
-            if ($(this).val()) {
-                $("#pos-customer-name").val(selectedText);
-            } else {
-                $("#pos-customer-name").val("");
+        $("#pos-customer-search").on("change blur", function() {
+            const val = $(this).val();
+            const list = document.getElementById("customer-list");
+            let foundId = "";
+            let foundName = val;
+            
+            // Look for matching option in datalist
+            if (list) {
+                for (let i = 0; i < list.options.length; i++) {
+                    if (list.options[i].value === val) {
+                        foundId = list.options[i].getAttribute("data-id");
+                        foundName = list.options[i].value;
+                        break;
+                    }
+                }
             }
+            // Set the hidden ID field (empty if walk-in/free-text)
+            $("#pos-customer-id").val(foundId);
+            // Append a hidden input for customer_name if not exists, or update it
+            if ($("#pos-customer-name-hidden").length === 0) {
+                const hiddenInput = $("<input>").attr("type", "hidden").attr("name", "customer_name").attr("id", "pos-customer-name-hidden");
+                $("#checkout-form").append(hiddenInput);
+            }
+            $("#pos-customer-name-hidden").val(foundName);
         });
         
         // Form Submit Validation

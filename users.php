@@ -90,12 +90,19 @@ if (isset($_GET['delete'])) {
     }
 }
 
-// Fetch Users (Filtered by pharmacy if not platform admin)
 try {
     $pharmacy_id = $_SESSION['pharmacy_id'];
     if ($pharmacy_id) {
-        $stmt = $pdo->prepare("SELECT u.*, p.name as pharmacy_name FROM users u LEFT JOIN pharmacies p ON u.pharmacy_id = p.id WHERE u.pharmacy_id = ? ORDER BY u.created_at DESC");
-        $stmt->execute([$pharmacy_id]);
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT u.*, p.name as pharmacy_name 
+            FROM users u 
+            LEFT JOIN pharmacies p ON u.pharmacy_id = p.id 
+            LEFT JOIN prescriptions rx ON u.id = rx.user_id AND rx.pharmacy_id = ?
+            WHERE u.pharmacy_id = ? 
+               OR (u.role = 'customer' AND rx.id IS NOT NULL)
+            ORDER BY u.created_at DESC
+        ");
+        $stmt->execute([$pharmacy_id, $pharmacy_id]);
     } else {
         $stmt = $pdo->query("SELECT u.*, p.name as pharmacy_name FROM users u LEFT JOIN pharmacies p ON u.pharmacy_id = p.id ORDER BY p.name ASC, u.created_at DESC");
     }

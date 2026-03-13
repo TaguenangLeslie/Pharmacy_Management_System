@@ -58,8 +58,16 @@ if (isset($_GET['delete'])) {
 try {
     $pharma_id = $_SESSION['pharmacy_id'] ?? null;
     if ($pharma_id) {
-        $stmt = $pdo->prepare("SELECT * FROM customers WHERE pharmacy_id = ? OR pharmacy_id IS NULL ORDER BY name ASC");
-        $stmt->execute([$pharma_id]);
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT c.* 
+            FROM customers c 
+            LEFT JOIN sales s ON c.id = s.customer_id AND s.pharmacy_id = ?
+            WHERE c.pharmacy_id = ? 
+               OR c.pharmacy_id IS NULL 
+               OR s.id IS NOT NULL 
+            ORDER BY c.name ASC
+        ");
+        $stmt->execute([$pharma_id, $pharma_id]);
     } else {
         // Platform Admin - Fetch all
         $stmt = $pdo->query("SELECT c.*, p.name as pharmacy_name 

@@ -9,7 +9,7 @@ require_once 'includes/functions/helpers.php';
 // Load system settings
 $app_settings = [];
 try {
-    $pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+    $settings_pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
     
     // Fetch global settings first
     $stmt = $pdo->query("SELECT * FROM settings WHERE pharmacy_id IS NULL");
@@ -18,9 +18,9 @@ try {
     }
     
     // Fetch pharmacy-specific settings to override
-    if ($pharmacy_id) {
+    if ($settings_pharmacy_id) {
         $stmt = $pdo->prepare("SELECT * FROM settings WHERE pharmacy_id = ?");
-        $stmt->execute([$pharmacy_id]);
+        $stmt->execute([$settings_pharmacy_id]);
         while ($row = $stmt->fetch()) {
             $app_settings[$row['setting_key']] = $row['setting_value'];
         }
@@ -108,19 +108,33 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                     </div>
 
                     <!-- User Profile Quick View -->
-                    <div class="px-4 py-3 mb-4 border-bottom">
+                    <div class="px-4 py-3 border-bottom">
                         <div class="d-flex align-items-center">
                             <a href="profile.php" class="text-decoration-none d-flex align-items-center">
                                 <img src="<?php echo $_SESSION['avatar'] ? BASE_URL . $_SESSION['avatar'] : BASE_URL . 'assets/img/default-avatar.png'; ?>" class="rounded-circle me-2 border" width="45" height="45" style="object-fit: cover;">
                                 <div>
                                     <div class="fw-bold text-dark small mb-0"><?php echo $_SESSION['full_name']; ?></div>
-                                    <div class="text-muted" style="font-size: 0.7rem;"><?php echo strtoupper($_SESSION['role']); ?></div>
+                                    <div class="text-muted" style="font-size: 0.7rem;">
+                                        <?php echo strtoupper($_SESSION['role']); ?>
+                                        <?php echo $_SESSION['pharmacy_id'] ? ' (Branch)' : ' (Global)'; ?>
+                                    </div>
                                 </div>
                             </a>
                         </div>
                     </div>
                     
-                    <div class="text-center mb-4">
+                    <?php if ($_SESSION['role'] === 'admin' && $_SESSION['pharmacy_id'] && !isset($_SESSION['welcome_dismissed'])): ?>
+                    <div class="px-3 py-3 border-bottom bg-success bg-opacity-10 text-success text-center">
+                        <i class="fas fa-check-circle mb-2 fa-2x"></i>
+                        <p class="small fw-bold mb-1">Pharmacy Approved!</p>
+                        <p class="small mb-2" style="font-size: 0.75rem;">You are now an Administrator for your registered branch.</p>
+                        <form method="POST" action="dismiss_welcome.php">
+                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3" style="font-size: 0.7rem;">Dismiss</button>
+                        </form>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div class="text-center mb-4 mt-4">
                         <h3 class="text-primary"><i class="fas fa-hand-holding-medical"></i> <?php echo $system_name; ?></h3>
                     </div>
                     <ul class="nav flex-column">
