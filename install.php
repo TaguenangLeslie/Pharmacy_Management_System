@@ -138,8 +138,7 @@ try {
 
     // 5. System Fixes
     $pdo->exec("UPDATE users SET is_active = 1 WHERE is_active IS NULL");
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('currency', 'FCFA') ON DUPLICATE KEY UPDATE setting_value = 'FCFA'");
-    $stmt->execute();
+    // Removed global setting insertion that violated FK setup. Settings will be seeded per pharmacy.
 
     // 6. Seed Medicines & Customers for all Pharmacies
     foreach ($pharma_ids as $p_name => $p_id) {
