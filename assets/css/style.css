@@ -65,8 +65,24 @@ h1, h2, h3, h4, h5, h6 {
     border-right: 1px solid var(--secondary-color);
     position: sticky;
     top: 0;
+    overflow: visible;  /* Allow dropdowns to escape sidebar bounds */
+}
+
+/* Inner scrollable area for nav items */
+.sidebar .position-sticky {
+    height: 100vh;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: visible;
+}
+
+.global-actions {
+    position: relative;
+    z-index: 1055; /* above Bootstrap modals */
+}
+
+.global-actions .dropdown-menu {
+    z-index: 9999 !important;
+    position: fixed !important;
 }
 
 .sidebar::-webkit-scrollbar {

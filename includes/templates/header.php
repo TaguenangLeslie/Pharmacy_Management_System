@@ -67,10 +67,13 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                         
                         $low_stock_count = $pdo->query("SELECT COUNT(*) FROM medicines WHERE quantity <= reorder_level $ph_filter_nav")->fetchColumn();
                         $expiry_count = $pdo->query("SELECT COUNT(*) FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) $ph_filter_nav")->fetchColumn();
-                        $total_notifs = $low_stock_count + $expiry_count;
+                        
+                        // Pharmacy approval notification for new branch admins
+                        $approval_notif = ($_SESSION['role'] === 'admin' && $_SESSION['pharmacy_id'] && !isset($_SESSION['welcome_dismissed']));
+                        $total_notifs = $low_stock_count + $expiry_count + ($approval_notif ? 1 : 0);
                         ?>
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-white shadow-sm rounded-circle position-relative" id="notifDropdown" data-bs-toggle="dropdown" style="width: 35px; height: 35px;">
+                            <button class="btn btn-sm btn-white shadow-sm rounded-circle position-relative" id="notifDropdown" data-bs-toggle="dropdown" data-bs-strategy="fixed" data-bs-offset="0,8" aria-expanded="false" style="width: 35px; height: 35px;">
                                 <i class="fas fa-bell text-primary"></i>
                                 <?php if ($total_notifs > 0): ?>
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.5rem; border: 2px solid white;">
@@ -78,8 +81,23 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                                 </span>
                                 <?php endif; ?>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="width: 250px;">
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="width: 280px; z-index: 9999;">
                                 <li class="dropdown-header">System Notifications</li>
+                                <?php if ($approval_notif): ?>
+                                <li>
+                                    <div class="dropdown-item py-2 d-flex align-items-start">
+                                        <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                                        <div class="small flex-grow-1">
+                                            <div class="fw-bold text-success">Pharmacy Approved!</div>
+                                            <div class="text-muted">You are now admin of your registered branch.</div>
+                                            <form method="POST" action="dismiss_welcome.php" class="mt-1">
+                                                <button type="submit" class="btn btn-xs btn-outline-success rounded-pill px-2 py-0" style="font-size:0.7rem;">Dismiss</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <?php endif; ?>
                                 <?php if ($low_stock_count > 0): ?>
                                 <li><a class="dropdown-item py-2" href="reports.php?type=stock">
                                     <div class="d-flex align-items-center">
@@ -123,16 +141,7 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                         </div>
                     </div>
                     
-                    <?php if ($_SESSION['role'] === 'admin' && $_SESSION['pharmacy_id'] && !isset($_SESSION['welcome_dismissed'])): ?>
-                    <div class="px-3 py-3 border-bottom bg-success bg-opacity-10 text-success text-center">
-                        <i class="fas fa-check-circle mb-2 fa-2x"></i>
-                        <p class="small fw-bold mb-1">Pharmacy Approved!</p>
-                        <p class="small mb-2" style="font-size: 0.75rem;">You are now an Administrator for your registered branch.</p>
-                        <form method="POST" action="dismiss_welcome.php">
-                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3" style="font-size: 0.7rem;">Dismiss</button>
-                        </form>
-                    </div>
-                    <?php endif; ?>
+                    <?php /* Approval notification moved to bell dropdown */ ?>
                     
                     <div class="text-center mb-4 mt-4">
                         <h3 class="text-primary"><i class="fas fa-hand-holding-medical"></i> <?php echo $system_name; ?></h3>

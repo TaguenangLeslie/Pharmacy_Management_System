@@ -11,8 +11,10 @@ require_login();
 $page_title = __('inventory');
 $active_page = 'inventory';
 
-$message = '';
-$error = '';
+// Read flash messages from session (set before any redirects)
+$message = $_SESSION['flash_message'] ?? '';
+$error   = $_SESSION['flash_error']   ?? '';
+unset($_SESSION['flash_message'], $_SESSION['flash_error']);
 
 // Handle Add/Edit Medicine (Restricted to Staff)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist', 'cashier'])) {
@@ -36,9 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist', 'c
                 $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $_SESSION['pharmacy_id']]);
                 
                 log_activity($pdo, $_SESSION['user_id'], 'ADD_MEDICINE', 'medicines', $pdo->lastInsertId());
-                $message = "Medicine added successfully!";
+                $_SESSION['flash_message'] = "Medicine added successfully!";
             } catch (PDOException $e) {
-                $error = "Error adding medicine: " . $e->getMessage();
+                $_SESSION['flash_error'] = "Error adding medicine: " . $e->getMessage();
             }
         } elseif ($_POST['action'] === 'edit') {
             $id = $_POST['medicine_id'];
@@ -47,11 +49,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist', 'c
                 $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $id, $_SESSION['pharmacy_id']]);
                 
                 log_activity($pdo, $_SESSION['user_id'], 'UPDATE_MEDICINE', 'medicines', $id);
-                $message = "Medicine updated successfully!";
+                $_SESSION['flash_message'] = "Medicine updated successfully!";
             } catch (PDOException $e) {
-                $error = "Error updating medicine: " . $e->getMessage();
+                $_SESSION['flash_error'] = "Error updating medicine: " . $e->getMessage();
             }
         }
+        // PRG: Redirect after POST to prevent double-submission and force a fresh re-render
+        header("Location: inventory.php");
+        exit;
     }
 }
 
@@ -62,10 +67,13 @@ if (isset($_GET['delete']) && has_role(['admin', 'pharmacist', 'cashier'])) {
         $stmt = $pdo->prepare("DELETE FROM medicines WHERE id = ? AND pharmacy_id = ?");
         $stmt->execute([$id, $_SESSION['pharmacy_id']]);
         log_activity($pdo, $_SESSION['user_id'], 'DELETE_MEDICINE', 'medicines', $id);
-        $message = "Medicine deleted successfully!";
+        $_SESSION['flash_message'] = "Medicine deleted successfully!";
     } catch (PDOException $e) {
-        $error = "Error deleting medicine: " . $e->getMessage();
+        $_SESSION['flash_error'] = "Error deleting medicine: " . $e->getMessage();
     }
+    // PRG for delete too
+    header("Location: inventory.php");
+    exit;
 }
 
 // Fetch Medicines (Filtered by Pharmacy)
@@ -328,12 +336,47 @@ if (has_role('admin') && !$pharmacy_id) {
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Supplier</label>
-                            <select name="supplier_id" id="med-sup" class="form-select">
-                                <option value="">Select Supplier</option>
-                                <?php foreach($suppliers as $sup): ?>
-                                <option value="<?php echo $sup['id']; ?>"><?php echo $sup['name']; ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="input-group">
+                                <input type="text" id="sup-search" class="form-control" placeholder="Search or pick supplier..." list="supplier-datalist" autocomplete="off">
+                                <datalist id="supplier-datalist">
+                                    <?php foreach($suppliers as $sup): ?>
+                                    <option value="<?php echo htmlspecialchars($sup['name']); ?>" data-id="<?php echo $sup['id']; ?>"></option>
+                                    <?php endforeach; ?>
+                                </datalist>
+                                <input type="hidden" name="supplier_id" id="med-sup">
+                                <button type="button" class="btn btn-outline-secondary" id="btn-add-supplier-toggle" title="Add new supplier">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div id="new-supplier-panel" class="border rounded-3 bg-light p-3 mt-2" style="display:none;">
+                                <p class="small fw-bold text-primary mb-2"><i class="fas fa-truck-moving me-1"></i> Quick Add New Supplier</p>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <input type="text" id="nsup-name" class="form-control form-control-sm" placeholder="Supplier Name *">
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="text" id="nsup-contact" class="form-control form-control-sm" placeholder="Contact Person">
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="text" id="nsup-phone" class="form-control form-control-sm" placeholder="Phone">
+                                    </div>
+                                    <div class="col-12">
+                                        <input type="email" id="nsup-email" class="form-control form-control-sm" placeholder="Email">
+                                    </div>
+                                    <div class="col-12">
+                                        <input type="text" id="nsup-address" class="form-control form-control-sm" placeholder="Address">
+                                    </div>
+                                    <div class="col-12">
+                                        <input type="text" id="nsup-terms" class="form-control form-control-sm" placeholder="Payment Terms (e.g. Net 30)">
+                                    </div>
+                                    <div class="col-12 d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-primary flex-grow-1" id="btn-save-new-supplier">
+                                            <i class="fas fa-save me-1"></i> Save & Select
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-light" id="btn-cancel-new-supplier">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Barcode</label>
@@ -431,6 +474,78 @@ if (has_role('admin') && !$pharmacy_id) {
 $extra_js = "
 <script>
 $(document).ready(function() {
+    // ---- Supplier Datalist Logic ----
+    // Store suppliers for lookup
+    const suppliers = " . json_encode(array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $suppliers)) . ";
+    
+    function setSupplierId(name) {
+        const match = suppliers.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (match) {
+            $('#med-sup').val(match.id);
+        } else {
+            $('#med-sup').val('');
+        }
+    }
+    
+    $('#sup-search').on('change input', function() {
+        setSupplierId($(this).val());
+    });
+    
+    // Toggle quick-add panel
+    $('#btn-add-supplier-toggle').click(function() {
+        $('#new-supplier-panel').slideToggle(200);
+        $('#nsup-name').focus();
+    });
+    
+    $('#btn-cancel-new-supplier').click(function() {
+        $('#new-supplier-panel').slideUp(200);
+    });
+    
+    // Save new supplier via AJAX
+    $('#btn-save-new-supplier').click(function() {
+        const name = $('#nsup-name').val().trim();
+        if (!name) { alert('Supplier name is required!'); return; }
+        
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class=\"fas fa-spinner fa-spin me-1\"></i> Saving...');
+        
+        $.ajax({
+            url: 'add_supplier_ajax.php',
+            method: 'POST',
+            data: {
+                name: name,
+                contact_person: $('#nsup-contact').val(),
+                phone: $('#nsup-phone').val(),
+                email: $('#nsup-email').val(),
+                address: $('#nsup-address').val(),
+                payment_terms: $('#nsup-terms').val()
+            },
+            dataType: 'json',
+            success: function(res) {
+                if (res.success) {
+                    // Add to datalist and suppliers array
+                    suppliers.push({ id: res.id, name: res.name });
+                    $('#supplier-datalist').append('<option value=\"' + res.name + '\" data-id=\"' + res.id + '\"></option>');
+                    // Auto-select the new supplier
+                    $('#sup-search').val(res.name);
+                    $('#med-sup').val(res.id);
+                    // Clear and hide the panel
+                    $('#nsup-name, #nsup-contact, #nsup-phone, #nsup-email, #nsup-address, #nsup-terms').val('');
+                    $('#new-supplier-panel').slideUp(200);
+                } else {
+                    alert('Error: ' + (res.error || 'Could not save supplier.'));
+                }
+            },
+            error: function() {
+                alert('AJAX request failed. Please try again.');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class=\"fas fa-save me-1\"></i> Save & Select');
+            }
+        });
+    });
+    
+    // ---- Edit Medicine Modal Logic ----
     $('.edit-medicine').click(function() {
         const data = $(this).data('json');
         $('#form-action').val('edit');
@@ -438,7 +553,15 @@ $(document).ready(function() {
         $('#med-name').val(data.name);
         $('#med-generic').val(data.generic_name);
         $('#med-cat').val(data.category);
-        $('#med-supplier').val(data.supplier_id);
+        // Populate supplier text field
+        if (data.supplier_id) {
+            const sup = suppliers.find(s => s.id == data.supplier_id);
+            $('#sup-search').val(sup ? sup.name : '');
+            $('#med-sup').val(data.supplier_id);
+        } else {
+            $('#sup-search').val('');
+            $('#med-sup').val('');
+        }
         $('#med-price').val(data.price);
         $('#med-cost').val(data.cost_price);
         $('#med-qty').val(data.quantity);
@@ -453,6 +576,18 @@ $(document).ready(function() {
         $('#medicineModal').modal('show');
     });
 
+    // Reset modal on hide
+    $('#medicineModal').on('hidden.bs.modal', function() {
+        $('#form-action').val('add');
+        $('#medicine_id').val('');
+        $('#sup-search').val('');
+        $('#med-sup').val('');
+        $('#new-supplier-panel').hide();
+        $('#medicineModalLabel').text('Medicine Information');
+        $('#save-btn').text('Save Medicine');
+    });
+
+    // ---- Cart Logic (Customers) ----
     $('.add-to-cart-btn').click(function() {
         const id = $(this).data('id');
         const name = $(this).data('name');
