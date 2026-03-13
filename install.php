@@ -61,8 +61,34 @@ try {
         ],
         'prescriptions' => [
             'user_id' => "ALTER TABLE prescriptions ADD COLUMN user_id INT NULL AFTER id, ADD INDEX(user_id)"
+        ],
+        'medicines' => [
+            'reorder_level' => "ALTER TABLE medicines ADD COLUMN reorder_level INT DEFAULT 10 AFTER unit",
+            'barcode' => "ALTER TABLE medicines ADD COLUMN barcode VARCHAR(50) AFTER expiry_date"
         ]
     ];
+
+    // 2c. Ensure New Tables Exist (even if not in schema.sql for some reason)
+    $new_tables = [
+        'support_messages' => "CREATE TABLE IF NOT EXISTS support_messages (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            sender_name VARCHAR(150) NOT NULL,
+            sender_email VARCHAR(150) NOT NULL,
+            issue_type VARCHAR(100) DEFAULT 'General',
+            message TEXT NOT NULL,
+            is_read TINYINT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )"
+    ];
+
+    foreach ($new_tables as $table => $create_sql) {
+        try {
+            $pdo->exec($create_sql);
+            echo "<p class='success'>✅ Table '$table' ensured.</p>";
+        } catch (PDOException $e) {
+            echo "<p class='error'>❌ Failed to ensure table $table: " . $e->getMessage() . "</p>";
+        }
+    }
 
     foreach ($columns_to_check as $table => $cols) {
         $existing_cols = $pdo->query("DESCRIBE $table")->fetchAll(PDO::FETCH_COLUMN);
