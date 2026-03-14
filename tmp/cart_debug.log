@@ -38,3 +38,180 @@
 )
 
 [2026-03-14 17:52:25] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:00:49] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:00:49] HIT: cart.php | Method: POST | POST: {"action":"add","id":"28","name":"Paracetamol","price":"500.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"1"}
+[2026-03-14 18:00:49] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 28
+    [name] => Paracetamol
+    [price] => 500.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 1
+)
+
+[2026-03-14 18:00:51] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:00:51] HIT: cart.php | Method: POST | POST: {"action":"add","id":"30","name":"Vitamin C","price":"1200.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"1"}
+[2026-03-14 18:00:51] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 30
+    [name] => Vitamin C
+    [price] => 1200.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 1
+)
+
+[2026-03-14 18:00:53] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:01:19] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:01:20] HIT: cart.php | Method: POST | POST: {"action":"add","id":"7","name":"Eye Drops","price":"9.50","pharmacy_id":"1","pharmacy_name":"Main PharmaCare","quantity":"1"}
+[2026-03-14 18:01:20] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 7
+    [name] => Eye Drops
+    [price] => 9.50
+    [pharmacy_id] => 1
+    [pharmacy_name] => Main PharmaCare
+    [quantity] => 1
+)
+
+[2026-03-14 18:01:24] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:01:24] HIT: cart.php | Method: POST | POST: {"action":"add","id":"15","name":"Eye Drops","price":"9.50","pharmacy_id":"1","pharmacy_name":"Main PharmaCare","quantity":"45"}
+[2026-03-14 18:01:24] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 15
+    [name] => Eye Drops
+    [price] => 9.50
+    [pharmacy_id] => 1
+    [pharmacy_name] => Main PharmaCare
+    [quantity] => 45
+)
+
+[2026-03-14 18:01:30] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:01:31] HIT: cart.php | Method: POST | POST: {"action":"add","id":"19","name":"Ibuprofen","price":"8.25","pharmacy_id":"1","pharmacy_name":"Main PharmaCare","quantity":"45"}
+[2026-03-14 18:01:31] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 19
+    [name] => Ibuprofen
+    [price] => 8.25
+    [pharmacy_id] => 1
+    [pharmacy_name] => Main PharmaCare
+    [quantity] => 45
+)
+
+[2026-03-14 18:01:34] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:01:36] HIT: cart.php | Method: POST | POST: {"action":"add","id":"10","name":"Amoxicillin","price":"12.00","pharmacy_id":"1","pharmacy_name":"Main PharmaCare","quantity":"45"}
+[2026-03-14 18:01:38] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 10
+    [name] => Amoxicillin
+    [price] => 12.00
+    [pharmacy_id] => 1
+    [pharmacy_name] => Main PharmaCare
+    [quantity] => 45
+)
+
+[2026-03-14 18:01:40] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:01:52] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:03:11] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:03:22] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:03:32] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:03:37] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:03:38] HIT: cart.php | Method: POST | POST: {"action":"add","id":"30","name":"Vitamin C","price":"1200.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"1"}
+[2026-03-14 18:03:38] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 30
+    [name] => Vitamin C
+    [price] => 1200.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 1
+)
+
+[2026-03-14 18:03:45] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:03:45] HIT: cart.php | Method: POST | POST: {"action":"add","id":"28","name":"Paracetamol","price":"500.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"26"}
+[2026-03-14 18:03:45] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 28
+    [name] => Paracetamol
+    [price] => 500.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 26
+)
+
+[2026-03-14 18:03:47] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:03:57] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:04:02] HIT: cart.php | Method: POST | POST: {"action":"update","index":"1","quantity":"10"}
+[2026-03-14 18:04:02] Cart request (AJAX): Array
+(
+    [action] => update
+    [index] => 1
+    [quantity] => 10
+)
+
+[2026-03-14 18:04:05] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:04:10] HIT: cart.php | Method: POST | POST: {"action":"update","index":"1","quantity":"1"}
+[2026-03-14 18:04:10] Cart request (AJAX): Array
+(
+    [action] => update
+    [index] => 1
+    [quantity] => 1
+)
+
+[2026-03-14 18:04:25] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:04:28] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:05:26] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:05:26] Ajax Error: Insufficient stock for Vitamin C (Req: 1, Avail: 0)
+[2026-03-14 18:05:31] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:05:31] Ajax Error: Insufficient stock for Vitamin C (Req: 1, Avail: 0)
+[2026-03-14 18:05:40] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:05:40] HIT: cart.php | Method: POST | POST: {"action":"add","id":"29","name":"Amoxicillin","price":"1500.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"165"}
+[2026-03-14 18:05:40] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 29
+    [name] => Amoxicillin
+    [price] => 1500.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 165
+)
+
+[2026-03-14 18:05:42] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:06:00] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:06:00] HIT: cart.php | Method: POST | POST: {"action":"add","id":"4","name":"Cough Relief","price":"15.00","pharmacy_id":"1","pharmacy_name":"Main PharmaCare","quantity":"100"}
+[2026-03-14 18:06:00] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 4
+    [name] => Cough Relief
+    [price] => 15.00
+    [pharmacy_id] => 1
+    [pharmacy_name] => Main PharmaCare
+    [quantity] => 100
+)
+
+[2026-03-14 18:06:14] HIT: cart.php | Method: GET | POST: []
+[2026-03-14 18:06:43] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 18:06:43] HIT: cart.php | Method: POST | POST: {"action":"add","id":"12","name":"Cough Relief","price":"15.00","pharmacy_id":"1","pharmacy_name":"Main PharmaCare","quantity":"100"}
+[2026-03-14 18:06:43] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 12
+    [name] => Cough Relief
+    [price] => 15.00
+    [pharmacy_id] => 1
+    [pharmacy_name] => Main PharmaCare
+    [quantity] => 100
+)
+
+[2026-03-14 18:06:53] HIT: cart.php | Method: GET | POST: []

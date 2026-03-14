@@ -111,6 +111,11 @@ try {
         $stmt->execute([$pharmacy_id]);
         $medicines = $stmt->fetchAll();
     }
+    
+    // Save context for "Continue Shopping" button on success page
+    if (has_role('customer') && isset($_GET['pharma'])) {
+        $_SESSION['last_pharmacy_id'] = $_GET['pharma'];
+    }
 } catch (PDOException $e) {
     $error = "Error fetching data: " . $e->getMessage();
 }
@@ -174,7 +179,21 @@ include 'includes/templates/header.php';
                 <tbody>
                     <?php if (empty($medicines)): ?>
                         <tr><td colspan="6" class="text-center py-5 text-muted">No medicines found.</td></tr>
-                    <?php else: foreach ($medicines as $m): ?>
+                    <?php else: 
+                        $current_pharma_group = '';
+                        $is_global_admin = (has_role('admin') && !$_SESSION['pharmacy_id']);
+                        
+                        foreach ($medicines as $m): 
+                            // Add Pharmacy Header for Global Admin
+                            if ($is_global_admin && $m['pharmacy_name'] !== $current_pharma_group): 
+                                $current_pharma_group = $m['pharmacy_name'];
+                    ?>
+                        <tr class="table-light">
+                            <td colspan="6" class="ps-4 py-3 bg-light border-bottom">
+                                <h6 class="mb-0 fw-bold text-primary"><i class="fas fa-hospital me-2"></i> <?php echo $current_pharma_group; ?></h6>
+                            </td>
+                        </tr>
+                    <?php endif; ?>
                         <tr data-id="<?php echo $m['id']; ?>">
                             <td class="ps-4">
                                 <div class="fw-bold"><?php echo $m['name']; ?></div>

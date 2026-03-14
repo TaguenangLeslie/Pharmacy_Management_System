@@ -8,7 +8,8 @@ require_once 'includes/functions/helpers.php';
 
 require_login();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role('customer')) {
+// Allow staff and customers to place orders (Staff can buy on behalf or for testing)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['customer', 'admin', 'pharmacist', 'cashier'])) {
     $action = $_POST['action'] ?? 'single';
     $payment_method = $_POST['payment_method'] ?? 'cash';
     
@@ -42,16 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role('customer')) {
                 $sale_id = $pdo->lastInsertId();
                 
                 foreach ($items as $item) {
-                    // 2. Double check stock
-                    $stmt = $pdo->prepare("SELECT quantity FROM medicines WHERE id = ?");
-                    $stmt->execute([$item['id']]);
-                    $current_qty = $stmt->fetchColumn();
-                    
-                    if ($current_qty < $item['quantity']) {
-                        throw new Exception("Insufficient stock for '{$item['name']}' at " . $items[0]['pharmacy_name']);
-                    }
-                    
-                    // 3. Add Sale Item
+                    // 2. Add Sale Item 
+                    // (Stock was already deducted during reservation in ajax_inventory.php)
                     $stmt = $pdo->prepare("INSERT INTO sale_items (sale_id, medicine_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)");
                     $stmt->execute([
                         $sale_id, 
@@ -71,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role('customer')) {
             
             $_SESSION['cart'] = []; // Clear cart
             $pdo->commit();
-            redirect('orders.php?success=orders_placed');
+            redirect('order_success.php');
             
         } elseif ($action === 'single') {
             // Legacy single item order logic (for safety)
@@ -103,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role('customer')) {
             log_activity($pdo, $_SESSION['user_id'], 'PLACE_ORDER', 'sales', $sale_id, null, "Order $invoice_no placed", $pharmacy_id);
             
             $pdo->commit();
-            redirect('orders.php?success=order_placed');
+            redirect('order_success.php');
         }
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();

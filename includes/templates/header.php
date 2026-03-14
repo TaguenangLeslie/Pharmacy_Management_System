@@ -277,6 +277,11 @@ cleanup_expired_reservations($pdo);
                             <i class="fas fa-globe me-2"></i> Global Orders
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($active_page == 'support_messages') ? 'active' : ''; ?>" href="support_messages.php">
+                                <i class="fas fa-headset me-2"></i> Support Inbox
+                            </a>
+                        </li>
                         <?php endif; ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'reports') ? 'active' : ''; ?>" href="reports.php">
