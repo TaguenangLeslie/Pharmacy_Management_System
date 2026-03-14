@@ -106,3 +106,16 @@ if (!function_exists('clear_session_reservations')) {
         }
     }
 }
+
+/**
+ * Debug logging for cart operations
+ */
+if (!function_exists('cart_log')) {
+    function cart_log($msg) {
+        $log_dir = dirname(dirname(__DIR__)) . '/tmp';
+        if (!is_dir($log_dir)) mkdir($log_dir, 0777, true);
+        $log_file = $log_dir . '/cart_debug.log';
+        $log = date('[Y-m-d H:i:s] ') . $msg . PHP_EOL;
+        file_put_contents($log_file, $log, FILE_APPEND);
+    }
+}

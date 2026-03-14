@@ -34,19 +34,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist', 'c
 
         if ($_POST['action'] === 'add') {
             try {
+                // Determine pharmacy_id for global admin if not set
+                $target_pharmacy = $_SESSION['pharmacy_id'] ?? ($_POST['target_pharmacy_id'] ?? null);
+                if (!$target_pharmacy) throw new Exception("No pharmacy selected for this medicine.");
+
                 $stmt = $pdo->prepare("INSERT INTO medicines (name, generic_name, category, supplier_id, price, cost_price, quantity, unit, reorder_level, expiry_date, barcode, description, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $_SESSION['pharmacy_id']]);
+                $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $target_pharmacy]);
                 
                 log_activity($pdo, $_SESSION['user_id'], 'ADD_MEDICINE', 'medicines', $pdo->lastInsertId());
                 $_SESSION['flash_message'] = "Medicine added successfully!";
-            } catch (PDOException $e) {
+            } catch (Exception $e) {
                 $_SESSION['flash_error'] = "Error adding medicine: " . $e->getMessage();
             }
         } elseif ($_POST['action'] === 'edit') {
             $id = $_POST['medicine_id'];
             try {
-                $stmt = $pdo->prepare("UPDATE medicines SET name=?, generic_name=?, category=?, supplier_id=?, price=?, cost_price=?, quantity=?, unit=?, reorder_level=?, expiry_date=?, barcode=?, description=? WHERE id=? AND pharmacy_id=?");
-                $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $id, $_SESSION['pharmacy_id']]);
+                // If admin without session pharmacy_id, just check the ID (or we can verify they have access to that pharma)
+                if (has_role('admin') && !$_SESSION['pharmacy_id']) {
+                    $stmt = $pdo->prepare("UPDATE medicines SET name=?, generic_name=?, category=?, supplier_id=?, price=?, cost_price=?, quantity=?, unit=?, reorder_level=?, expiry_date=?, barcode=?, description=? WHERE id=?");
+                    $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $id]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE medicines SET name=?, generic_name=?, category=?, supplier_id=?, price=?, cost_price=?, quantity=?, unit=?, reorder_level=?, expiry_date=?, barcode=?, description=? WHERE id=? AND pharmacy_id=?");
+                    $stmt->execute([$name, $generic_name, $category, $supplier_id, $price, $cost_price, $quantity, $unit, $reorder_level, $expiry_date, $barcode, $description, $id, $_SESSION['pharmacy_id']]);
+                }
                 
                 log_activity($pdo, $_SESSION['user_id'], 'UPDATE_MEDICINE', 'medicines', $id);
                 $_SESSION['flash_message'] = "Medicine updated successfully!";
@@ -177,12 +187,17 @@ include 'includes/templates/header.php';
                             <td class="text-end pe-4">
                                 <?php if (has_role('customer')): ?>
                                     <button class="btn btn-primary btn-sm rounded-pill add-to-cart-btn" 
-                                            data-id="<?php echo $m['id']; ?>" data-name="<?php echo $m['name']; ?>" 
-                                            data-price="<?php echo $m['price']; ?>" data-pharma-id="<?php echo $m['pharmacy_id']; ?>"
-                                            data-pharma-name="<?php echo $m['pharmacy_name']; ?>">Add to Cart</button>
+                                            data-id="<?php echo $m['id']; ?>" 
+                                            data-name="<?php echo htmlspecialchars($m['name'], ENT_QUOTES); ?>" 
+                                            data-price="<?php echo $m['price']; ?>" 
+                                            data-pharma-id="<?php echo $m['pharmacy_id']; ?>"
+                                            data-pharma-name="<?php echo htmlspecialchars($m['pharmacy_name'] ?? 'Local Pharmacy', ENT_QUOTES); ?>">Add to Cart</button>
                                 <?php else: ?>
                                     <div class="btn-group">
-                                        <button class="btn btn-sm btn-outline-info edit-medicine" data-json='<?php echo json_encode($m); ?>'><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-sm btn-outline-info edit-medicine" 
+                                                data-json="<?php echo htmlspecialchars(json_encode($m), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                         <a href="inventory.php?delete=<?php echo $m['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete?')"><i class="fas fa-trash"></i></a>
                                     </div>
                                 <?php endif; ?>
@@ -196,16 +211,116 @@ include 'includes/templates/header.php';
 <?php endif; ?>
 
 <!-- Modals & Scripts -->
-<div class="modal fade" id="medicineModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">... (Standard Add/Edit Modal Content) ...</div></div></div>
+<div class="modal fade" id="medicineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header pink-gradient text-white">
+                <h5 class="modal-title" id="modalTitle">Add New Medicine</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="medicineForm" method="POST">
+                <input type="hidden" name="action" id="med_action" value="add">
+                <input type="hidden" name="medicine_id" id="medicine_id">
+                <input type="hidden" name="target_pharmacy_id" value="<?php echo $_GET['pharma'] ?? $_SESSION['pharmacy_id'] ?? ''; ?>">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Medicine Name</label>
+                            <input type="text" name="name" id="med_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Generic Name</label>
+                            <input type="text" name="generic_name" id="med_generic" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Category</label>
+                            <input type="text" name="category" id="med_cat" class="form-control" placeholder="e.g. Antibiotics">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Supplier</label>
+                            <select name="supplier_id" id="med_supplier" class="form-select">
+                                <option value="">Select Supplier</option>
+                                <?php foreach ($suppliers as $s): ?>
+                                    <option value="<?php echo $s['id']; ?>"><?php echo $s['name']; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Unit</label>
+                            <input type="text" name="unit" id="med_unit" class="form-control" placeholder="e.g. Tablet, Bottle" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Selling Price</label>
+                            <input type="number" step="0.01" name="price" id="med_price" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Cost Price</label>
+                            <input type="number" step="0.01" name="cost_price" id="med_cost" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Quantity</label>
+                            <input type="number" name="quantity" id="med_qty" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Reorder Level</label>
+                            <input type="number" name="reorder_level" id="med_reorder" class="form-control" value="10">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Expiry Date</label>
+                            <input type="date" name="expiry_date" id="med_expiry" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Barcode</label>
+                            <input type="text" name="barcode" id="med_barcode" class="form-control">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Description</label>
+                            <textarea name="description" id="med_desc" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Save Medicine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <div class="modal fade" id="orderModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header pink-gradient text-white"><h5 class="modal-title">Add to Cart</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow text-center">
+            <div class="modal-header pink-gradient text-white border-0 text-center">
+                <h5 class="modal-title w-100 ps-3 text-white">Add to Cart</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
             <form id="orderForm">
-                <input type="hidden" name="action" value="add"><input type="hidden" name="id" id="cart-med-id"><input type="hidden" name="name" id="cart-med-name-val"><input type="hidden" name="price" id="cart-med-price-val"><input type="hidden" name="pharmacy_id" id="cart-pharma-id"><input type="hidden" name="pharmacy_name" id="cart-pharma-name">
-                <div class="modal-body p-4"><h6 id="order-med-name" class="fw-bold mb-3"></h6><div class="mb-3"><label class="form-label">Quantity</label><input type="number" name="quantity" class="form-control" value="1" min="1" required></div><div class="text-muted small">Total: <span id="order-total" class="fw-bold text-primary"></span></div></div>
-                <div class="modal-footer border-0 p-4 pt-0"><button type="submit" class="btn btn-primary w-100 shadow-sm" id="confirm-add-cart-btn">Add to Cart</button></div>
+                <input type="hidden" name="action" value="add">
+                <input type="hidden" name="id" id="cart-med-id">
+                <input type="hidden" name="name" id="cart-med-name-val">
+                <input type="hidden" name="price" id="cart-med-price-val">
+                <input type="hidden" name="pharmacy_id" id="cart-pharma-id">
+                <input type="hidden" name="pharmacy_name" id="cart-pharma-name">
+                <div class="modal-body p-4 pt-2">
+                    <div class="bg-light rounded-4 p-3 mb-3">
+                        <i class="fas fa-pills fa-2x text-primary mb-2"></i>
+                        <h6 id="order-med-name" class="fw-bold mb-0"></h6>
+                    </div>
+                    <div class="mb-3 text-start">
+                        <label class="form-label fw-bold small text-muted">Select Quantity</label>
+                        <input type="number" name="quantity" class="form-control form-control-lg rounded-pill px-4" value="1" min="1" required>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded-4">
+                        <span class="text-muted small">Estimated Total</span>
+                        <span id="order-total" class="h5 fw-bold text-primary mb-0"></span>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm py-3" id="confirm-add-cart-btn">
+                        Add to Shopping Cart <i class="fas fa-cart-plus ms-1"></i>
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -220,27 +335,97 @@ include 'includes/templates/header.php';
 
 <script>
 $(document).ready(function() {
-    $('.add-to-cart-btn').click(function() {
+    // Use delegated events for better reliability
+    $(document).on('click', '.add-to-cart-btn', function() {
         const d = $(this).data();
-        $('#cart-med-id').val(d.id); $('#cart-med-name-val').val(d.name); $('#cart-med-price-val').val(d.price); $('#cart-pharma-id').val(d.pharmaId); $('#cart-pharma-name').val(d.pharmaName);
-        $('#order-med-name').text(d.name); $('#order-total').text(new Intl.NumberFormat().format(d.price) + ' FCFA');
+        console.log("Cart Button Data:", d);
+        
+        const medId = $(this).attr('data-id');
+        const medName = $(this).attr('data-name');
+        const medPrice = $(this).attr('data-price');
+        const pharmaId = $(this).attr('data-pharma-id');
+        const pharmaName = $(this).attr('data-pharma-name');
+
+        $('#cart-med-id').val(medId); 
+        $('#cart-med-name-val').val(medName); 
+        $('#cart-med-price-val').val(medPrice); 
+        $('#cart-pharma-id').val(pharmaId); 
+        $('#cart-pharma-name').val(pharmaName);
+        
+        $('#order-med-name').text(medName); 
+        $('#order-total').text(new Intl.NumberFormat().format(medPrice) + ' FCFA');
         $('#orderModal').modal('show');
+    });
+
+    $(document).on('click', '.edit-medicine', function() {
+        const d = $(this).data('json');
+        console.log("Editing Medicine Data:", d);
+        if (!d) {
+            Swal.fire('Error', 'Could not read medicine data. Try refreshing.', 'error');
+            return;
+        }
+        $('#med_action').val('edit');
+        $('#medicine_id').val(d.id);
+        $('#med_name').val(d.name);
+        $('#med_generic').val(d.generic_name);
+        $('#med_cat').val(d.category);
+        $('#med_supplier').val(d.supplier_id);
+        $('#med_unit').val(d.unit);
+        $('#med_price').val(d.price);
+        $('#med_cost').val(d.cost_price);
+        $('#med_qty').val(d.quantity);
+        $('#med_reorder').val(d.reorder_level);
+        $('#med_expiry').val(d.expiry_date);
+        $('#med_barcode').val(d.barcode);
+        $('#med_desc').val(d.description);
+        $('#modalTitle').text('Edit Medicine');
+        $('#medicineModal').modal('show');
+    });
+
+    // Reset modal on close
+    $('#medicineModal').on('hidden.bs.modal', function() {
+        $('#medicineForm')[0].reset();
+        $('#modalTitle').text('Add New Medicine');
+        $('#med_action').val('add');
+        $('#medicine_id').val('');
     });
 
     $('#orderForm').submit(function(e) {
         e.preventDefault();
         const btn = $('#confirm-add-cart-btn');
         btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Reserving...');
-        $.post('ajax_inventory.php', { action: 'reserve', medicine_id: $('#cart-med-id').val(), pharmacy_id: $('#cart-pharma-id').val(), quantity: $('input[name="quantity"]').val() }, function(res) {
+        
+        const resData = { 
+            action: 'reserve', 
+            medicine_id: $('#cart-med-id').val(), 
+            pharmacy_id: $('#cart-pharma-id').val(), 
+            quantity: $('#orderForm input[name="quantity"]').val() 
+        };
+        console.log("Reservation Request:", resData);
+
+        $.post('ajax_inventory.php', resData, function(res) {
+            console.log("Reservation Response:", res);
             if (res.status === 'success') {
                 $.post('cart.php', $('#orderForm').serialize(), function(r) {
+                    console.log("Cart Response:", r);
                     if (r.status === 'success') {
-                        $('#cart-count').text(r.count); $('#orderModal').modal('hide');
+                        $('#cart-count').text(r.count); 
+                        $('#orderModal').modal('hide');
                         Swal.fire({ title: 'Success!', text: 'Added to cart.', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                    } else {
+                        Swal.fire('Error', r.message || 'Failed to add to cart session.', 'error');
                     }
-                }, 'json');
-            } else { Swal.fire('Error', res.message, 'error'); }
-        }, 'json').always(() => btn.prop('disabled', false).text('Add to Cart'));
+                }, 'json').fail(function(xhr) {
+                    console.error("Cart API Fail:", xhr.responseText);
+                    Swal.fire('Error', 'Cart API failed. Check console.', 'error');
+                });
+            } else { 
+                Swal.fire('Stock Error', res.message, 'error'); 
+            }
+        }, 'json').fail(function(xhr) {
+            console.error("Reservation API Fail:", xhr.responseText);
+            Swal.fire('Error', 'Stock reservation failed. Check console.', 'error');
+        }).always(() => btn.prop('disabled', false).text('Add to Cart'));
     });
 });
 </script>

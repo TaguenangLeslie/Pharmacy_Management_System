@@ -5,6 +5,8 @@
 require_once 'includes/config/database.php';
 require_once 'includes/functions/auth.php';
 require_once 'includes/functions/helpers.php';
+cart_log("HIT: ajax_inventory.php | Action: " . ($_POST['action'] ?? 'NONE'));
+require_once 'includes/functions/helpers.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -29,13 +31,24 @@ switch ($action) {
             $pdo->beginTransaction();
             
             // 1. Check current stock
-            $stmt = $pdo->prepare("SELECT quantity FROM medicines WHERE id = ? AND pharmacy_id = ? FOR UPDATE");
+            $stmt = $pdo->prepare("SELECT name, quantity FROM medicines WHERE id = ? AND pharmacy_id = ? FOR UPDATE");
             $stmt->execute([$medicine_id, $pharmacy_id]);
-            $current_stock = $stmt->fetchColumn();
+            $med = $stmt->fetch(PDO::FETCH_ASSOC);
             
+            if (!$med) {
+                $pdo->rollBack();
+                $msg = "Medicine ID $medicine_id not found for Pharmacy $pharmacy_id";
+                if (function_exists('cart_log')) cart_log("Ajax Error: " . $msg);
+                echo json_encode(['status' => 'error', 'message' => 'Item not found in this pharmacy.']);
+                exit;
+            }
+            
+            $current_stock = (int)$med['quantity'];
             if ($current_stock < $qty) {
                 $pdo->rollBack();
-                echo json_encode(['status' => 'error', 'message' => 'Insufficient stock']);
+                $msg = "Insufficient stock for {$med['name']} (Req: $qty, Avail: $current_stock)";
+                if (function_exists('cart_log')) cart_log("Ajax Error: " . $msg);
+                echo json_encode(['status' => 'error', 'message' => "Only $current_stock items available."]);
                 exit;
             }
             

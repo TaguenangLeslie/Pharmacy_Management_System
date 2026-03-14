@@ -7,27 +7,42 @@ require_once 'includes/functions/auth.php';
 require_once 'includes/functions/helpers.php';
 
 require_login();
+require_once 'includes/functions/helpers.php';
+cart_log("HIT: cart.php | Method: " . $_SERVER['REQUEST_METHOD'] . " | POST: " . json_encode($_POST));
 
-if (!isset($_SESSION['cart'])) {
+if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
 
-if ((isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') || isset($_POST['action']) && $_POST['action'] === 'add' && isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/x-www-form-urlencoded') !== false) {
-    // Standardize AJAX response for cart additions from inventory/pos handlers
-    $is_ajax = true;
-} else {
-    $is_ajax = false;
+// Global sanitization: filter out any corrupted (non-array) items immediately
+$_SESSION['cart'] = array_filter($_SESSION['cart'], function($item) {
+    return is_array($item) && isset($item['id'], $item['price'], $item['quantity']);
+});
+
+// Enhanced AJAX detection (X-Requested-With or Accept header)
+$is_ajax = is_ajax() || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
+
+if ($is_ajax) {
+    header('Content-Type: application/json');
+    cart_log("Cart request (AJAX): " . print_r($_POST, true));
 }
 
 $action = $_POST['action'] ?? $_GET['action'] ?? 'view';
 
 if ($action === 'add') {
-    $id = $_POST['id'];
-    $name = $_POST['name'];
-    $price = $_POST['price'];
-    $pharma_id = $_POST['pharmacy_id'];
-    $pharma_name = $_POST['pharmacy_name'];
+    $id = $_POST['id'] ?? null;
+    $name = sanitize_input($_POST['name'] ?? 'Unknown');
+    $price = (float)($_POST['price'] ?? 0);
+    $pharma_id = $_POST['pharmacy_id'] ?? null;
+    $pharma_name = sanitize_input($_POST['pharmacy_name'] ?? 'Local Pharmacy');
     $qty = (int)($_POST['quantity'] ?? 1);
+
+    if (!$id || !$pharma_id) {
+        $msg = "Missing ID ($id) or Pharmacy ID ($pharma_id)";
+        cart_log("Error: " . $msg);
+        if ($is_ajax) { die(json_encode(['status' => 'error', 'message' => $msg])); }
+        redirect('inventory.php?error=invalid_item');
+    }
 
     // PERSISTENT SYNC: Reserve the stock in DB first
     // This is normally handled by the JS on the inventory page calling reserve before redirecting,
@@ -39,9 +54,9 @@ if ($action === 'add') {
     
     // Check if already in cart
     $found = false;
-    foreach ($_SESSION['cart'] as &$item) {
+    foreach ($_SESSION['cart'] as $key => $item) {
         if ($item['id'] == $id && $item['pharmacy_id'] == $pharma_id) {
-            $item['quantity'] += $qty;
+            $_SESSION['cart'][$key]['quantity'] += $qty;
             $found = true;
             break;
         }
@@ -66,17 +81,13 @@ if ($action === 'add') {
 }
 
 if ($action === 'update') {
-    $index = $_POST['index'];
-    $new_qty = (int)$_POST['quantity'];
+    $index = $_POST['index'] ?? null;
+    $new_qty = (int)($_POST['quantity'] ?? 0);
     
-    if (isset($_SESSION['cart'][$index])) {
-        $old_qty = $_SESSION['cart'][$index]['quantity'];
-        $item_id = $_SESSION['cart'][$index]['id'];
-        $ph_id = $_SESSION['cart'][$index]['pharmacy_id'];
-        
+    if ($index !== null && isset($_SESSION['cart'][$index])) {
         if ($new_qty <= 0) {
             // RELEASE ALL
-            header("Location: ajax_inventory.php?action=release&medicine_id=$item_id&pharmacy_id=$ph_id&quantity=$old_qty"); // Internal redirect-like logic would be better but let's do session first
+            // header("Location: ajax_inventory.php?action=release&medicine_id=$item_id&pharmacy_id=$ph_id&quantity=$old_qty"); // Internal redirect-like logic would be better but let's do session first
             unset($_SESSION['cart'][$index]);
             $_SESSION['cart'] = array_values($_SESSION['cart']);
         } else {
@@ -87,7 +98,7 @@ if ($action === 'update') {
     if ($is_ajax) {
         $grand_total = 0;
         foreach ($_SESSION['cart'] as $item) {
-            $grand_total += $item['price'] * $item['quantity'];
+            $grand_total += ($item['price'] * $item['quantity']);
         }
         echo json_encode([
             'status' => 'success', 
@@ -100,8 +111,8 @@ if ($action === 'update') {
 }
 
 if ($action === 'remove') {
-    $index = $_GET['index'];
-    if (isset($_SESSION['cart'][$index])) {
+    $index = $_GET['index'] ?? null;
+    if ($index !== null && isset($_SESSION['cart'][$index])) {
         // IMPORTANT: In a real system, we'd also trigger a release here.
         // For the sake of this demo/implementation, we'll rely on the expired cleanup
         // OR the user can implement the release AJAX before clicking remove.
@@ -125,9 +136,14 @@ include 'includes/templates/header.php';
 ?>
 
 <div class="row pt-3 pb-2 mb-4 align-items-center">
-    <div class="col-12">
-        <h1 class="h2">Shopping Cart</h1>
-        <p class="text-muted">Review your items before placing the order.</p>
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h2">Shopping Cart</h1>
+            <p class="text-muted">Review your items before placing the order.</p>
+        </div>
+        <a href="cart.php?action=clear" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="return confirm('This will clear your shopping session. Continue?')">
+            <i class="fas fa-trash-alt me-1"></i> Clear Session
+        </a>
     </div>
 </div>
 

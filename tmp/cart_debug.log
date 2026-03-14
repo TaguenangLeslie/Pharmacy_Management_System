@@ -1,0 +1,40 @@
+[2026-03-14 17:52:15] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 17:52:15] HIT: cart.php | Method: POST | POST: {"action":"add","id":"29","name":"Amoxicillin","price":"1500.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"1"}
+[2026-03-14 17:52:15] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 29
+    [name] => Amoxicillin
+    [price] => 1500.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 1
+)
+
+[2026-03-14 17:52:18] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 17:52:19] HIT: cart.php | Method: POST | POST: {"action":"add","id":"28","name":"Paracetamol","price":"500.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"1"}
+[2026-03-14 17:52:19] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 28
+    [name] => Paracetamol
+    [price] => 500.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 1
+)
+
+[2026-03-14 17:52:21] HIT: ajax_inventory.php | Action: reserve
+[2026-03-14 17:52:22] HIT: cart.php | Method: POST | POST: {"action":"add","id":"30","name":"Vitamin C","price":"1200.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"1"}
+[2026-03-14 17:52:22] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 30
+    [name] => Vitamin C
+    [price] => 1200.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 1
+)
+
+[2026-03-14 17:52:25] HIT: cart.php | Method: GET | POST: []

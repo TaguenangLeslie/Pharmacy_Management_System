@@ -16,7 +16,14 @@ $page_title = 'Checkout';
 $active_page = 'cart';
 include 'includes/templates/header.php';
 
-// Group items by pharmacy for multiple invoices
+// Ensure cart is valid and sanitize
+if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+    $_SESSION['cart'] = [];
+}
+$_SESSION['cart'] = array_filter($_SESSION['cart'], function($item) {
+    return is_array($item) && isset($item['id'], $item['price'], $item['quantity'], $item['pharmacy_id']);
+});
+
 $grouped_cart = [];
 foreach ($_SESSION['cart'] as $item) {
     if (!isset($grouped_cart[$item['pharmacy_id']])) {
