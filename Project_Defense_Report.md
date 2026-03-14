@@ -86,4 +86,4 @@ PharmaCare successfully demonstrates the feasibility of a multi-tenant healthcar
 ---
 **Presented By**: Taguenang Leslie
 **Date**: March 2026
-**Platform**: PharmaCare v2.0
+**Platform**: PharmaCare v3.0

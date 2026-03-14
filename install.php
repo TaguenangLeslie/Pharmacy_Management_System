@@ -65,6 +65,12 @@ try {
         'medicines' => [
             'reorder_level' => "ALTER TABLE medicines ADD COLUMN reorder_level INT DEFAULT 10 AFTER unit",
             'barcode' => "ALTER TABLE medicines ADD COLUMN barcode VARCHAR(50) AFTER expiry_date"
+        ],
+        'support_messages' => [
+            'is_read' => "ALTER TABLE support_messages ADD COLUMN is_read TINYINT DEFAULT 0 AFTER message"
+        ],
+        'users' => [
+            'last_notif_dismissal' => "ALTER TABLE users ADD COLUMN last_notif_dismissal TIMESTAMP NULL DEFAULT NULL"
         ]
     ];
 
@@ -78,6 +84,19 @@ try {
             message TEXT NOT NULL,
             is_read TINYINT DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        'cart_reservations' => "CREATE TABLE IF NOT EXISTS cart_reservations (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            session_id VARCHAR(255) NOT NULL,
+            medicine_id INT NOT NULL,
+            pharmacy_id INT NOT NULL,
+            quantity INT NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (medicine_id) REFERENCES medicines(id) ON DELETE CASCADE,
+            FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE CASCADE,
+            INDEX(session_id),
+            INDEX(expires_at)
         )"
     ];
 
@@ -216,5 +235,8 @@ try {
     echo "<p>Please ensure your DB_USER and DB_PASS in <code>includes/config/database.php</code> are correct.</p>";
 }
 
-echo "</div>";
+    echo "<footer style='margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; color: #888; font-size: 0.8em;'>";
+    echo "&copy; 2026 Taguenang Leslie. All rights reserved.";
+    echo "</footer>";
+    echo "</div>";
 ?>

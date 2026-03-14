@@ -73,8 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             $item_total = $item['price'] * $item['quantity'];
             $stmt_item->execute([$sale_id, $item['id'], $item['quantity'], $item['price'], $item_total]);
             
-            // Deduct stock (Isolated by pharmacy_id)
-            $stmt_update_stock->execute([$item['quantity'], $item['id'], $ph_id]);
+            // 3. Finalize Reservation (Deduction already happened in POS UI via AJAX)
+            $stmt_del_res = $pdo->prepare("DELETE FROM cart_reservations WHERE session_id = ? AND medicine_id = ? AND pharmacy_id = ? LIMIT 1");
+            $stmt_del_res->execute([session_id(), $item['id'], $ph_id]);
         }
 
         $pdo->commit();

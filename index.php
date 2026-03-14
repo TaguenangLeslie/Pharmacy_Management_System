@@ -18,6 +18,7 @@ try {
 }
 
 $page_title = 'Welcome to PharmaCare';
+$hide_sidebar = true;
 include 'includes/templates/header.php';
 ?>
 

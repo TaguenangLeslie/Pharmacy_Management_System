@@ -29,6 +29,9 @@ try {
 
 $system_name = $app_settings['system_name'] ?? APP_NAME;
 $_SESSION['lang'] = $app_settings['language'] ?? 'en';
+
+// Clean up any stale stock reservations
+cleanup_expired_reservations($pdo);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['lang']; ?>">
@@ -54,7 +57,7 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
 <body>
     <div class="container-fluid">
         <div class="row">
-            <?php if (is_logged_in()): ?>
+            <?php if (is_logged_in() && (!isset($hide_sidebar) || !$hide_sidebar)): ?>
             <!-- Sidebar -->
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-white sidebar collapse border-end" style="position: relative; z-index: 200;">
                 <div class="pt-3" style="position: sticky; top: 0; height: 100vh; overflow-y: auto; overflow-x: visible;">
@@ -79,13 +82,28 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
                                 $support_msg_count = $pdo->query("SELECT COUNT(*) FROM support_messages WHERE is_read = 0")->fetchColumn();
                             } catch (PDOException $e) {}
                         }
+                                               $total_notifs = $low_stock_count + $expiry_count + ($approval_notif ? 1 : 0) + $support_msg_count;
                         
-                        $total_notifs = $low_stock_count + $expiry_count + ($approval_notif ? 1 : 0) + $support_msg_count;
+                        // Persistent dismissal logic
+                        if (!isset($_SESSION['last_notif_dismissal'])) {
+                            $stmt_user = $pdo->prepare("SELECT last_notif_dismissal FROM users WHERE id = ?");
+                            $stmt_user->execute([$_SESSION['user_id']]);
+                            $_SESSION['last_notif_dismissal'] = $stmt_user->fetchColumn();
+                        }
+
+                        $last_dismissed = $_SESSION['notifs_dismissed_at'] ?? strtotime($_SESSION['last_notif_dismissal'] ?? '1970-01-01');
+                        $show_badge = ($total_notifs > 0);
+                        
+                        if ($last_dismissed > 0) {
+                            $show_badge = false;
+                            if ($support_msg_count > 0) $show_badge = true;
+                        }
                         ?>
+>
                         <div class="dropdown">
                             <button class="btn btn-sm btn-white shadow-sm rounded-circle position-relative" id="notifDropdown" data-bs-toggle="dropdown" data-bs-strategy="fixed" data-bs-offset="0,8" aria-expanded="false" style="width: 35px; height: 35px;">
                                 <i class="fas fa-bell text-primary"></i>
-                                <?php if ($total_notifs > 0): ?>
+                                <?php if ($show_badge): ?>
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notif-badge" style="font-size: 0.5rem; border: 2px solid white;">
                                     <?php echo $total_notifs; ?>
                                 </span>
@@ -296,4 +314,6 @@ $_SESSION['lang'] = $app_settings['language'] ?? 'en';
 
             <!-- Main Content Area -->
             <main class="col-md-9 col-lg-10 px-md-4 py-4">
+            <?php else: ?>
+            <main class="col-12 px-0">
             <?php endif; ?>

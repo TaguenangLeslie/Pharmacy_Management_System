@@ -27,6 +27,8 @@ if (!isset($_SESSION['csrf_token'])) {
 }
 
 define('APP_NAME', 'PharmaCare');
+define('COPYRIGHT_HOLDER', 'Taguenang Leslie');
+define('COPYRIGHT_YEAR', '2026');
 
 // Robust Dynamic BASE_URL Detection
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";

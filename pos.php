@@ -23,7 +23,7 @@ if ($is_platform_admin && isset($_GET['pharmacy_id']) && !empty($_GET['pharmacy_
 try {
     $all_medicines = [];
     if ($pharmacy_id) {
-        $stmt = $pdo->prepare("SELECT id, name, generic_name, price, quantity, unit FROM medicines WHERE quantity > 0 AND pharmacy_id = ? ORDER BY name ASC");
+        $stmt = $pdo->prepare("SELECT id, name, generic_name, price, quantity, unit FROM medicines WHERE pharmacy_id = ? ORDER BY name ASC");
         $stmt->execute([$pharmacy_id]);
         $all_medicines = $stmt->fetchAll();
     }
@@ -110,7 +110,7 @@ include 'includes/templates/header.php';
                             <?php if (empty($all_medicines)): ?>
                             <tr><td colspan="4" class="text-center py-5 text-muted">No medicines available in stock.</td></tr>
                             <?php else: foreach ($all_medicines as $med): ?>
-                            <tr class="product-row" data-name="<?php echo strtolower($med['name']); ?>">
+                            <tr class="product-row" data-id="<?php echo $med['id']; ?>" data-name="<?php echo strtolower($med['name']); ?>">
                                 <td class="ps-4">
                                     <div class="fw-bold"><?php echo $med['name']; ?></div>
                                     <div class="small text-muted"><?php echo $med['generic_name']; ?></div>
@@ -204,7 +204,10 @@ include 'includes/templates/header.php';
 </div>
 <?php endif; ?>
 <?php 
-$extra_js = '
+$pharmacy_id_js = (int)$pharmacy_id;
+$last_dismissed = $_SESSION['notifs_dismissed_at'] ?? strtotime($_SESSION['last_notif_dismissal'] ?? '1970-01-01');
+
+$extra_js = <<<JS
 <script>
     let cart = [];
     
@@ -229,12 +232,12 @@ $extra_js = '
             cartTable.append(`
                 <tr>
                     <td>
-                        <div class="fw-bold">${item.name}</div>
-                        <div class="small text-muted">${Math.round(item.price).toLocaleString()} FCFA x ${item.quantity}</div>
+                        <div class="fw-bold">\${item.name}</div>
+                        <div class="small text-muted">\${Math.round(item.price).toLocaleString()} FCFA x \${item.quantity}</div>
                     </td>
-                    <td class="text-end fw-bold">${Math.round(itemTotal).toLocaleString()} FCFA</td>
+                    <td class="text-end fw-bold">\${Math.round(itemTotal).toLocaleString()} FCFA</td>
                     <td class="text-end">
-                        <button class="btn btn-sm text-danger remove-item" data-index="${index}"><i class="fas fa-times"></i></button>
+                        <button class="btn btn-sm text-danger remove-item" data-index="\${index}"><i class="fas fa-times"></i></button>
                     </td>
                 </tr>
             `);
@@ -253,24 +256,76 @@ $extra_js = '
             const stock = $(this).data("stock");
             
             const existing = cart.find(item => item.id === id);
-            if (existing) {
-                if (existing.quantity < stock) {
-                    existing.quantity++;
+            
+            // RESERVE FIRST
+            $.post('ajax_inventory.php', {
+                action: 'reserve',
+                medicine_id: id,
+                pharmacy_id: $pharmacy_id_js,
+                quantity: 1
+            }, function(res) {
+                if (res.status === 'success') {
+                    if (existing) {
+                        existing.quantity++;
+                    } else {
+                        cart.push({ id, name, price, quantity: 1 });
+                    }
+                    updateCartUI();
+                    // Update table stock
+                    updateStockUI(id, res.new_stock);
                 } else {
-                    Swal.fire("Out of stock!", "Cannot add more than available quantity.", "warning");
+                    Swal.fire("Error", res.message || "Could not reserve stock.", "error");
                 }
-            } else {
-                cart.push({ id, name, price, quantity: 1 });
-            }
-            updateCartUI();
+            }, 'json');
         });
         
         // Remove from Cart
         $(document).on("click", ".remove-item", function() {
             const index = $(this).data("index");
-            cart.splice(index, 1);
-            updateCartUI();
+            const item = cart[index];
+            
+            // RELEASE FIRST
+            $.post('ajax_inventory.php', {
+                action: 'release',
+                medicine_id: item.id,
+                pharmacy_id: $pharmacy_id_js,
+                quantity: item.quantity
+            }, function(res) {
+                if (res.status === 'success') {
+                    cart.splice(index, 1);
+                    updateCartUI();
+                }
+            });
         });
+        
+        function updateStockUI(id, qty) {
+            const row = $('.product-row[data-id="' + id + '"]');
+            if (row.length) {
+                const badge = row.find('td:eq(2) .badge');
+                if (badge.length) {
+                    const unit = badge.text().split(' ').pop();
+                    badge.text(qty + ' ' + unit);
+                }
+            }
+        }
+
+        // Poll for stock updates every 5 seconds
+        setInterval(function() {
+            const ids = [];
+            $('.add-to-cart').each(function() {
+                ids.push($(this).data('id'));
+            });
+            
+            if (ids.length > 0) {
+                $.post('ajax_inventory.php', { action: 'poll', ids: ids }, function(res) {
+                    if (res.status === 'success') {
+                        for (const [id, qty] of Object.entries(res.stocks)) {
+                            updateStockUI(id, qty);
+                        }
+                    }
+                }, 'json');
+            }
+        }, 5000);
         
         // Search Filter
         $("#pos-search").on("keyup", function() {
@@ -318,6 +373,6 @@ $extra_js = '
         });
     });
 </script>
-';
+JS;
 include 'includes/templates/footer.php'; 
 ?>

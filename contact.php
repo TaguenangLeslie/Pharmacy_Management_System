@@ -6,6 +6,7 @@ require_once 'includes/config/database.php';
 require_once 'includes/functions/helpers.php';
 
 $page_title = 'Contact Support';
+$hide_sidebar = true;
 $success = false;
 $error = '';
 

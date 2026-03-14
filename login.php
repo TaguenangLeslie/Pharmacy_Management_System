@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $page_title = 'Login';
+$hide_sidebar = true;
 include 'includes/templates/header.php';
 ?>
 
@@ -78,7 +79,7 @@ include 'includes/templates/header.php';
             </div>
         </div>
         <div class="text-center mt-4">
-            <p class="text-muted small">&copy; <?php echo date('Y'); ?> PharmaCare. All rights reserved.</p>
+            <p class="text-muted small">&copy; 2026 Taguenang Leslie. All rights reserved.</p>
         </div>
     </div>
 </div>

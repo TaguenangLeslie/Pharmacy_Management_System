@@ -66,3 +66,43 @@ if (!function_exists('is_ajax')) {
         return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
     }
 }
+
+/**
+ * Clean up expired stock reservations and return stock to medicines
+ */
+if (!function_exists('cleanup_expired_reservations')) {
+    function cleanup_expired_reservations($pdo) {
+        try {
+            // Find expired reservations
+            $stmt = $pdo->query("SELECT id, medicine_id, quantity FROM cart_reservations WHERE expires_at < NOW()");
+            $expired = $stmt->fetchAll();
+            
+            if (!empty($expired)) {
+                $pdo->beginTransaction();
+                foreach ($expired as $res) {
+                    // 1. Return stock
+                    $pdo->prepare("UPDATE medicines SET quantity = quantity + ? WHERE id = ?")->execute([$res['quantity'], $res['medicine_id']]);
+                    // 2. Delete reservation
+                    $pdo->prepare("DELETE FROM cart_reservations WHERE id = ?")->execute([$res['id']]);
+                }
+                $pdo->commit();
+            }
+        } catch (PDOException $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            error_log("Reservation cleanup failed: " . $e->getMessage());
+        }
+    }
+}
+
+/**
+ * Clear reservations for a specific session (e.g. after checkout or manual clear)
+ */
+if (!function_exists('clear_session_reservations')) {
+    function clear_session_reservations($pdo, $session_id) {
+        try {
+            $pdo->prepare("DELETE FROM cart_reservations WHERE session_id = ?")->execute([$session_id]);
+        } catch (PDOException $e) {
+            error_log("Session reservation clear failed: " . $e->getMessage());
+        }
+    }
+}

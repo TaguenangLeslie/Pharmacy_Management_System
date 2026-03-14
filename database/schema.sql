@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP NULL,
     is_active BOOLEAN DEFAULT TRUE,
+    last_notif_dismissal TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE SET NULL
 );
 
@@ -182,4 +183,19 @@ CREATE TABLE IF NOT EXISTS support_messages (
     message TEXT NOT NULL,
     is_read TINYINT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 13. Cart Reservations Table (Real-time stock sync)
+CREATE TABLE IF NOT EXISTS cart_reservations (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    session_id VARCHAR(255) NOT NULL,
+    medicine_id INT NOT NULL,
+    pharmacy_id INT NOT NULL,
+    quantity INT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (medicine_id) REFERENCES medicines(id) ON DELETE CASCADE,
+    FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE CASCADE,
+    INDEX(session_id),
+    INDEX(expires_at)
 );

@@ -61,9 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role('customer')) {
                         ($item['price'] * $item['quantity'])
                     ]);
                     
-                    // 4. Update Stock (Hardened with pharmacy context)
-                    $stmt = $pdo->prepare("UPDATE medicines SET quantity = quantity - ? WHERE id = ? AND pharmacy_id = ?");
-                    $stmt->execute([$item['quantity'], $item['id'], $pharmacy_id]);
+                    // 4. Finalize Reservation (Delete it so cleanup doesn't return stock)
+                    $stmt = $pdo->prepare("DELETE FROM cart_reservations WHERE session_id = ? AND medicine_id = ? AND pharmacy_id = ? LIMIT 1");
+                    $stmt->execute([session_id(), $item['id'], $pharmacy_id]);
                 }
                 
                 log_activity($pdo, $_SESSION['user_id'], 'PLACE_CART_ORDER', 'sales', $sale_id, null, "Cart order $invoice_no placed", $pharmacy_id);

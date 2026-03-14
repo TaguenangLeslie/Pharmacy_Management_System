@@ -84,5 +84,6 @@ PharmaCare is designed for maximum portability. Follow these steps to set up the
 
 ---
 
-## 📝 License
-This project is developed for educational and professional demonstration purposes. Feel free to modify and expand upon it.
+## 📝 License & Copyright
+&copy; 2026 **Taguenang Leslie**. All rights reserved.
+This project is developed for educational and professional demonstration purposes.
