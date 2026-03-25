@@ -57,41 +57,42 @@
 
 ---
 
-## 📝 Key Test Scenarios
+## 📝 Key Test Scenarios (v3.2)
 
-### 1. Pharmacy Registration → Auto Admin Upgrade
+### 1. Unified Cross-Pharmacy Search (v3.2)
+1. Log in as `test_customer`
+2. Go to **Inventory**
+3. Type "Paracetamol" in the search bar and click **Filter**
+4. Observe medicines from **Main PharmaCare**, **Elite Wellness**, and **Community Clinic** in one grid.
+5. Click **Add** — Observe the item enters the cart and a reservation is made implicitly in the background.
+
+### 2. Pharmacy Registration → Auto Admin Upgrade
 1. Log in as `test_customer`
 2. Visit **Register Pharmacy** (link in navigation)
 3. Fill out the multi-step form and submit
 4. Log in as `admin` → go to **Pharmacy Management**
 5. Click **Approve** — the customer's account **instantly upgrades to Branch Admin**
 
-### 2. Admin Creates Pharmacy Directly
+### 3. Admin Creates Pharmacy Directly
 1. Log in as `admin` → **Pharmacy Management**
 2. Click **Add Pharmacy** (top-right button)
 3. Fill form and submit — pharmacy is **immediately active**
 4. Assign a Branch Admin via **Users** page
 
-### 3. Delete a Pharmacy
+### 4. Delete a Pharmacy
 1. Log in as `admin` → **Pharmacy Management**
 2. Click **Delete** on any pharmacy and confirm
 3. All staff from that branch are demoted to `customer` role automatically
 
-### 4. Platform Tax Flow
+### 5. Platform Tax Flow
 1. Log in as `admin` → **Settings** → set Platform Tax Rate (e.g. `2`)
 2. Log in as any cashier → make a sale via POS
 3. Log back in as `admin` → **Platform Revenue** — see the collected tax per pharmacy
 
-### 5. Language Toggle
+### 6. Language Toggle
 1. Click the 🌐 globe icon in the header
 2. Switch between **English** and **French**
 3. All UI labels change instantly and the preference saves to your database profile
-
-### 6. Cross-Pharmacy Shopping (Customer)
-1. Log in as `test_customer`
-2. Browse inventory from different pharmacies
-3. Add medicines from multiple branches to cart
-4. Checkout — separate invoices are generated per pharmacy
 
 ### 7. POS — Pharmacist Pending Sale
 1. Log in as `pharmacist` → **POS**

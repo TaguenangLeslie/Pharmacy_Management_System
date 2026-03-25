@@ -1,6 +1,6 @@
 # 🏥 PharmaCare — Multi-Tenant Pharmacy Management System
 
-> **Author:** Taguenang Leslie &nbsp;|&nbsp; **Version:** 3.1 &nbsp;|&nbsp; **© 2026**
+> **Author:** Taguenang Leslie &nbsp;|&nbsp; **Version:** 3.2 &nbsp;|&nbsp; **© 2026**
 
 PharmaCare is a comprehensive, web-based pharmacy management solution built for pharmacy networks. It uses a **multi-tenant architecture** — multiple pharmacy branches operate on one platform with complete data isolation — while the Global System Administrator manages the entire network, collects passive platform revenue, and has full CRUD control over all pharmacies.
 
@@ -16,11 +16,17 @@ PharmaCare is a comprehensive, web-based pharmacy management solution built for 
 | **Branch Admin** | Manage their pharmacy — Staff, Settings, Reports, Inventory |
 | **Pharmacist** | Inventory, Prescriptions, Pending Sales → Cashier |
 | **Cashier** | POS terminal, Confirm Pending Sales, Customers |
-| **Customer** | Browse drugs, Cart, Checkout, Orders, Prescriptions |
+| **Customer** | **Unified search across all pharmacies**, Cart, Checkout, Orders, Prescriptions |
 
 > **Auto-Upgrade on Approval**: When a customer submits a pharmacy registration and the Admin approves it, the customer's account is automatically promoted to **Branch Admin** of the new pharmacy.
 
-### 🏥 Pharmacy Management *(Global Admin — v3.1)*
+### 🔍 Unified Drug Search *(Customer — v3.2)*
+- **Cross-Pharmacy Discovery**: Search for drugs across the entire network from a single page.
+- **Source Transparency**: Each result clearly shows which pharmacy the drug belongs to with a source badge.
+- **Live Price Comparison**: Compare prices for the same drug across different branches in one view.
+- **Synchronized Stock Holds**: Clicking "Add to Cart" instantly reserves the stock in the database for 30 minutes.
+
+### 🏥 Pharmacy Management *(Global Admin)*
 - **Add Pharmacy** directly (immediately active, no approval needed)
 - **Approve / Suspend** customer-submitted pharmacy applications
 - **Delete Pharmacy** permanently — all branch staff are automatically demoted to customer accounts
@@ -46,19 +52,6 @@ PharmaCare is a comprehensive, web-based pharmacy management solution built for 
 - Per-user language preference saved in database
 - Full translation: Navigation, Dashboard, POS, Inventory
 - Switch via 🌐 globe icon in the top navigation bar
-
-### 📊 Reporting & Analytics
-- 7-day sales trend chart
-- Sales / Stock / Expiry reports
-- Financial summaries with expense tracking
-
-### 🔒 Security
-- bcrypt password hashing
-- PDO Prepared Statements (SQL injection prevention)
-- CSRF session tokens
-- Role-based page guards on every route
-- Multi-tenant data isolation by `pharmacy_id`
-- XSS prevention on all output
 
 ---
 
@@ -122,7 +115,8 @@ PharmaCare is a comprehensive, web-based pharmacy management solution built for 
 install.php              ← ONE-TIME database setup & seeding
 dashboard.php            ← Central hub for staff & admin
 pos.php                  ← Point of Sale terminal
-inventory.php            ← Drug stock management
+inventory.php            ← Unified search (Customer) & Stock management (Staff)
+cart.php                 ← Synchronized stock reservation & cart logic
 pharmacies.php           ← Pharmacy CRUD (Global Admin only)
 platform_revenue.php     ← Tax earnings dashboard (Global Admin)
 settings.php             ← System configuration

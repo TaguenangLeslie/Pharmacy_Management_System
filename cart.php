@@ -30,18 +30,42 @@ if ($is_ajax) {
 $action = $_POST['action'] ?? $_GET['action'] ?? 'view';
 
 if ($action === 'add') {
-    $id = $_POST['id'] ?? null;
-    $name = sanitize_input($_POST['name'] ?? 'Unknown');
-    $price = (float)($_POST['price'] ?? 0);
-    $pharma_id = $_POST['pharmacy_id'] ?? null;
-    $pharma_name = sanitize_input($_POST['pharmacy_name'] ?? 'Local Pharmacy');
-    $qty = (int)($_POST['quantity'] ?? 1);
+    $id = $_POST['id'] ?? $_GET['id'] ?? null;
+    $pharma_id = $_POST['pharmacy_id'] ?? $_GET['pharma'] ?? null;
+    $qty = (int)($_POST['quantity'] ?? $_GET['qty'] ?? 1);
 
     if (!$id || !$pharma_id) {
-        $msg = "Missing ID ($id) or Pharmacy ID ($pharma_id)";
+        $msg = "Missing Medicine ID ($id) or Pharmacy ID ($pharma_id)";
         cart_log("Error: " . $msg);
         if ($is_ajax) { die(json_encode(['status' => 'error', 'message' => $msg])); }
         redirect('inventory.php?error=invalid_item');
+    }
+
+    // Secure Fetch: Get name and price from DB if not provided via POST
+    $name = $_POST['name'] ?? null;
+    $price = isset($_POST['price']) ? (float)$_POST['price'] : null;
+    $pharma_name = $_POST['pharmacy_name'] ?? null;
+
+    if (!$name || $price === null || !$pharma_name) {
+        try {
+            $stmt = $pdo->prepare("SELECT m.name, m.price, p.name as ph_name 
+                                   FROM medicines m 
+                                   JOIN pharmacies p ON m.pharmacy_id = p.id 
+                                   WHERE m.id = ? AND m.pharmacy_id = ?");
+            $stmt->execute([$id, $pharma_id]);
+            $details = $stmt->fetch();
+            if ($details) {
+                $name = $details['name'];
+                $price = (float)$details['price'];
+                $pharma_name = $details['ph_name'];
+            } else {
+                throw new Exception("Medicine not found in specified pharmacy.");
+            }
+        } catch (Exception $e) {
+            cart_log("DB Fetch Error: " . $e->getMessage());
+            if ($is_ajax) { die(json_encode(['status' => 'error', 'message' => $e->getMessage()])); }
+            redirect('inventory.php?error=item_not_found');
+        }
     }
 
     // PERSISTENT SYNC: Reserve the stock in DB first
@@ -63,14 +87,64 @@ if ($action === 'add') {
     }
 
     if (!$found) {
-        $_SESSION['cart'][] = [
-            'id' => $id,
-            'name' => $name,
-            'price' => $price,
-            'pharmacy_id' => $pharma_id,
-            'pharmacy_name' => $pharma_name,
-            'quantity' => $qty
-        ];
+        try {
+            // SYNC STOCK WITH cart_reservations TABLE
+            $pdo->beginTransaction();
+            
+            // 1. Double check stock and lock the row
+            $stmt = $pdo->prepare("SELECT quantity, name FROM medicines WHERE id = ? AND pharmacy_id = ? FOR UPDATE");
+            $stmt->execute([$id, $pharma_id]);
+            $med = $stmt->fetch();
+            
+            if (!$med || $med['quantity'] < $qty) {
+                throw new Exception("Insufficient stock available.");
+            }
+            
+            // 2. Insert into cart_reservations
+            $expires_at = date('Y-m-d H:i:s', strtotime('+30 minutes'));
+            $stmt = $pdo->prepare("INSERT INTO cart_reservations (session_id, medicine_id, pharmacy_id, quantity, expires_at) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([session_id(), $id, $pharma_id, $qty, $expires_at]);
+            
+            // 3. Deduct from medicines
+            $stmt = $pdo->prepare("UPDATE medicines SET quantity = quantity - ? WHERE id = ?");
+            $stmt->execute([$qty, $id]);
+            
+            $pdo->commit();
+            
+            $_SESSION['cart'][] = [
+                'id' => $id,
+                'name' => $name,
+                'price' => $price,
+                'pharmacy_id' => $pharma_id,
+                'pharmacy_name' => $pharma_name,
+                'quantity' => $qty
+            ];
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            cart_log("Reservation Error: " . $e->getMessage());
+            if ($is_ajax) { die(json_encode(['status' => 'error', 'message' => $e->getMessage()])); }
+            redirect('inventory.php?error=' . urlencode($e->getMessage()));
+        }
+    } else {
+        // If already in cart, we should still handle the reservation update
+        try {
+            $pdo->beginTransaction();
+            // Update stock and reservation for incremental add
+            $stmt = $pdo->prepare("UPDATE medicines SET quantity = quantity - ? WHERE id = ? AND quantity >= ?");
+            $stmt->execute([$qty, $id, $qty]);
+            
+            if ($stmt->rowCount() > 0) {
+                $stmt = $pdo->prepare("UPDATE cart_reservations SET quantity = quantity + ? WHERE session_id = ? AND medicine_id = ? AND pharmacy_id = ?");
+                $stmt->execute([$qty, session_id(), $id, $pharma_id]);
+                $pdo->commit();
+            } else {
+                throw new Exception("Insufficient stock for additional quantity.");
+            }
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            if ($is_ajax) { die(json_encode(['status' => 'error', 'message' => $e->getMessage()])); }
+            redirect('inventory.php?error=' . urlencode($e->getMessage()));
+        }
     }
 
     if ($is_ajax) {

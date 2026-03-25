@@ -88,6 +88,8 @@ if (isset($_GET['delete']) && has_role(['admin', 'pharmacist'])) {
 $pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
 $medicines = [];
 $active_pharmacies = [];
+$search_drug = '';
+$selected_pharma = '';
 
 try {
     if (has_role('customer')) {
@@ -243,7 +245,7 @@ include 'includes/templates/header.php';
                                 <?php echo $m['quantity']; ?> <?php echo $m['unit'] ?? 'units'; ?> in stock
                             </div>
                         </div>
-                        <a href="cart.php?add=<?php echo $m['id']; ?>&pharma=<?php echo $m['pharmacy_id']; ?>" 
+                        <a href="cart.php?action=add&id=<?php echo $m['id']; ?>&pharma=<?php echo $m['pharmacy_id']; ?>" 
                            class="btn btn-primary btn-sm rounded-pill px-3">
                             <i class="fas fa-cart-plus me-1"></i>Add
                         </a>
