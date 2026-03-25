@@ -275,7 +275,7 @@ include 'includes/templates/header.php';
                             ?>
                             <tr>
                                 <td class="ps-4">
-                                    <div class="fw-bold"><?php echo $m['name']; ?></div>
+                                    <div class="fw-bold"><a href="inventory.php?search=<?php echo urlencode($m['name']); ?>" class="text-decoration-none text-dark"><?php echo $m['name']; ?></a></div>
                                 </td>
                                 <td><span class="text-<?php echo $color; ?>"><?php echo date('M d, Y', strtotime($m['expiry_date'])); ?></span></td>
                                 <td class="text-end pe-4">

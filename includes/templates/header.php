@@ -317,6 +317,11 @@ cleanup_expired_reservations($pdo);
                                 <i class="fas fa-headset me-2"></i> Support Inbox
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($active_page == 'platform_revenue') ? 'active' : ''; ?>" href="platform_revenue.php">
+                                <i class="fas fa-hand-holding-usd me-2"></i> Platform Revenue
+                            </a>
+                        </li>
                         <?php endif; ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'reports') ? 'active' : ''; ?>" href="reports.php">
