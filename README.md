@@ -1,63 +1,64 @@
 # 🏥 PharmaCare — Multi-Tenant Pharmacy Management System
 
-> **Author:** Taguenang Leslie &nbsp;|&nbsp; **Version:** 3.0 &nbsp;|&nbsp; **© 2026**
+> **Author:** Taguenang Leslie &nbsp;|&nbsp; **Version:** 3.1 &nbsp;|&nbsp; **© 2026**
 
-PharmaCare is a comprehensive, web-based pharmacy management solution designed for pharmacy networks. It leverages a **multi-tenant architecture**, allowing multiple pharmacy branches to operate on a single platform with full data isolation, while the Global Administrator manages registrations, collects platform revenue, and oversees the entire network.
+PharmaCare is a comprehensive, web-based pharmacy management solution built for pharmacy networks. It uses a **multi-tenant architecture** — multiple pharmacy branches operate on one platform with complete data isolation — while the Global System Administrator manages the entire network, collects passive platform revenue, and has full CRUD control over all pharmacies.
 
 ---
 
 ## 🚀 Key Features
 
-### 👤 User Roles
-| Role | Access Level |
-|------|-------------|
-| **Global Admin** | Full platform control, pharmacy approvals, platform tax & revenue tracking |
-| **Branch Admin** | Manages their own pharmacy, staff, settings, reports |
-| **Pharmacist** | Inventory, prescriptions, pending sales to cashier |
-| **Cashier** | POS terminal, pending sales processing, customer management |
-| **Customer** | Browse drugs across pharmacies, cart & checkout, prescriptions |
+### 👤 User Roles & Permissions
+
+| Role | Access |
+|------|--------|
+| **Global Admin** | Full platform control — Add/Approve/Suspend/**Delete** pharmacies, Platform Revenue, Tax Config, Global oversight |
+| **Branch Admin** | Manage their pharmacy — Staff, Settings, Reports, Inventory |
+| **Pharmacist** | Inventory, Prescriptions, Pending Sales → Cashier |
+| **Cashier** | POS terminal, Confirm Pending Sales, Customers |
+| **Customer** | Browse drugs, Cart, Checkout, Orders, Prescriptions |
+
+> **Auto-Upgrade on Approval**: When a customer submits a pharmacy registration and the Admin approves it, the customer's account is automatically promoted to **Branch Admin** of the new pharmacy.
+
+### 🏥 Pharmacy Management *(Global Admin — v3.1)*
+- **Add Pharmacy** directly (immediately active, no approval needed)
+- **Approve / Suspend** customer-submitted pharmacy applications
+- **Delete Pharmacy** permanently — all branch staff are automatically demoted to customer accounts
+- View legal documents (license, pharmacist credentials, business registration)
 
 ### 📦 Inventory & Supply Chain
-- Real-time stock tracking with **Low Stock Alerts** and **Reorder Level** thresholds
-- **Expiry Date Monitoring** with colour-coded urgency (dashboard clickable links → inventory entry)
-- Supplier management with payment terms tracking
-- Barcode field support for quick lookup
+- Real-time stock tracking with Low Stock Alerts
+- Expiry Date monitoring — dashboard entries are **clickable links** to the inventory record
+- Supplier management with payment term tracking
 
 ### 🛒 Point of Sale (POS)
-- Searchable product grid with instant cart updates
-- Pharmacy-scoped tax calculation per sale
-- Pharmacist creates **Pending Sales** → Cashier confirms and receipts
-- Payment methods: Cash, Card, Mobile Money
+- Searchable product grid with live cart (no page reload)
+- Pharmacist → Cashier pending sale workflow
+- Payment: Cash, Card, Mobile Money
+- Printable receipt generation
 
-### 🌐 Customer Portal
-- Browse active pharmacies and their drug inventories
-- Session-based shopping cart with multi-pharmacy support
-- Smart checkout: auto-generates separate invoices per pharmacy
-- Prescription upload for pharmacist review
+### 💰 Platform Tax & Revenue Engine
+- Global Admin sets a platform-wide tax rate (%)
+- Auto-deducted from every sale system-wide — stored immutably per transaction
+- **Platform Revenue page** shows earnings per pharmacy + lifetime total
 
-### 💰 Platform Tax & Revenue Engine *(v3.0)*
-- Global Admin sets a **Platform Tax Rate (%)** in system settings
-- Automatically deducted from every sale system-wide
-- **Platform Revenue** dashboard shows earnings per pharmacy and lifetime totals
-
-### 🌍 Bilingual Support — English / French *(v3.0)*
-- Per-user language preference (stored in DB, switchable from header)
-- Full translation of navigation, dashboard, POS, inventory UI
-- Translation dictionary in `includes/functions/lang.php`
+### 🌍 Bilingual Support — English / French
+- Per-user language preference saved in database
+- Full translation: Navigation, Dashboard, POS, Inventory
+- Switch via 🌐 globe icon in the top navigation bar
 
 ### 📊 Reporting & Analytics
-- 7-day sales trend chart on dashboard
-- Sales reports with date filtering
-- Stock and expiry reports
-- Financial summaries per pharmacy
+- 7-day sales trend chart
+- Sales / Stock / Expiry reports
+- Financial summaries with expense tracking
 
 ### 🔒 Security
 - bcrypt password hashing
-- PDO Prepared Statements (no SQL injection)
-- `htmlspecialchars()` XSS prevention on all output
-- CSRF session token
-- Strict role-based page guards (`require_role()`)
-- Multi-tenant data isolation scoped by `pharmacy_id`
+- PDO Prepared Statements (SQL injection prevention)
+- CSRF session tokens
+- Role-based page guards on every route
+- Multi-tenant data isolation by `pharmacy_id`
+- XSS prevention on all output
 
 ---
 
@@ -75,32 +76,27 @@ PharmaCare is a comprehensive, web-based pharmacy management solution designed f
 
 ## ⚙️ Installation
 
-> **All database setup lives exclusively in `install.php`.**
+> **`install.php` is the only setup script. All database changes live here.**
 
-1. Place the project folder in your XAMPP `htdocs`:
+1. Place the project in your XAMPP `htdocs`:
    ```
    C:/xampp/htdocs/Pharmacy_Management_System/
    ```
 
-2. Set your database credentials in `includes/config/database.php`:
+2. Configure `includes/config/database.php`:
    ```php
    define('DB_NAME', 'pharmacy_db');
    define('DB_USER', 'root');
    define('DB_PASS', '');
    ```
 
-3. Start Apache + MySQL in XAMPP, then visit:
+3. Start Apache + MySQL, then navigate to:
    ```
    http://localhost/Pharmacy_Management_System/install.php
    ```
+   This creates the database, runs the full schema, applies all upgrades, and seeds sample data.
 
-4. The installer will:
-   - Create the database automatically
-   - Run the full schema
-   - Apply all column and table upgrades
-   - Seed 3 sample pharmacies, 8 users, inventory, and customers
-
-5. Access the system:
+4. Launch the app:
    ```
    http://localhost/Pharmacy_Management_System/
    ```
@@ -112,30 +108,32 @@ PharmaCare is a comprehensive, web-based pharmacy management solution designed f
 | Username | Password | Role |
 |----------|----------|------|
 | `admin` | `Admin@123` | Global Admin |
-| `pharmacist` | `Pharma@123` | Pharmacist |
-| `cashier` | `Cashier@123` | Cashier |
+| `pharmacist` | `Pharma@123` | Pharmacist (Main PharmaCare) |
+| `cashier` | `Cashier@123` | Cashier (Main PharmaCare) |
 | `test_customer` | `Customer@123` | Customer |
 
-> Full list of test accounts: **[TEST_ACCOUNTS.md](TEST_ACCOUNTS.md)**
+> Full list + test scenarios: **[TEST_ACCOUNTS.md](TEST_ACCOUNTS.md)**
 
 ---
 
 ## 📂 Key Files
 
 ```
-install.php              ← ONE-TIME setup/seeding (master script)
-dashboard.php            ← Main hub for admin & staff
+install.php              ← ONE-TIME database setup & seeding
+dashboard.php            ← Central hub for staff & admin
 pos.php                  ← Point of Sale terminal
-inventory.php            ← Drug management and browsing
-platform_revenue.php     ← Global Admin revenue tracker
+inventory.php            ← Drug stock management
+pharmacies.php           ← Pharmacy CRUD (Global Admin only)
+platform_revenue.php     ← Tax earnings dashboard (Global Admin)
+settings.php             ← System configuration
 includes/functions/
-  auth.php               ← Login, session, role guards
-  helpers.php            ← Utilities: format_currency, sanitize, log_activity
+  auth.php               ← Login, session, RBAC guards
+  helpers.php            ← format_currency, sanitize, log_activity
   lang.php               ← EN/FR translation dictionary
 database/schema.sql      ← Master database schema
 ```
 
-> See **[DOCUMENTATION.md](DOCUMENTATION.md)** for the full technical reference.
+> Full technical reference: **[DOCUMENTATION.md](DOCUMENTATION.md)**
 
 ---
 

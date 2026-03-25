@@ -91,14 +91,33 @@ $active_pharmacies = [];
 
 try {
     if (has_role('customer')) {
-        $selected_pharma = $_GET['pharma'] ?? null;
-        if ($selected_pharma) {
-            $stmt = $pdo->prepare("SELECT m.*, p.name as pharmacy_name FROM medicines m JOIN pharmacies p ON m.pharmacy_id = p.id WHERE m.pharmacy_id = ? AND p.status = 'active' ORDER BY m.name ASC");
-            $stmt->execute([$selected_pharma]);
-            $medicines = $stmt->fetchAll();
-        } else {
-            $active_pharmacies = $pdo->query("SELECT * FROM pharmacies WHERE status = 'active' ORDER BY name ASC")->fetchAll();
+        // Always load active pharmacies for the filter dropdown
+        $active_pharmacies = $pdo->query("SELECT id, name FROM pharmacies WHERE status = 'active' ORDER BY name ASC")->fetchAll();
+        
+        // Build search query across all active pharmacies
+        $search_drug    = trim($_GET['search'] ?? '');
+        $selected_pharma = $_GET['pharma'] ?? '';
+        
+        $sql    = "SELECT m.*, p.name as pharmacy_name, p.id as pharma_id 
+                   FROM medicines m 
+                   JOIN pharmacies p ON m.pharmacy_id = p.id 
+                   WHERE p.status = 'active' AND m.quantity > 0";
+        $params = [];
+        
+        if ($search_drug !== '') {
+            $sql    .= " AND (m.name LIKE ? OR m.generic_name LIKE ? OR m.category LIKE ?)";
+            $like    = "%$search_drug%";
+            $params  = array_merge($params, [$like, $like, $like]);
         }
+        if ($selected_pharma !== '') {
+            $sql    .= " AND m.pharmacy_id = ?";
+            $params[] = $selected_pharma;
+        }
+        $sql .= " ORDER BY m.name ASC, p.name ASC";
+        
+        $stmt     = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $medicines = $stmt->fetchAll();
     } elseif (has_role('admin') && !$pharmacy_id) {
         $stmt = $pdo->query("SELECT m.*, p.name as pharmacy_name, s.name as supplier_name 
                              FROM medicines m 
@@ -135,24 +154,108 @@ include 'includes/templates/header.php';
 <?php if ($message): ?><div class="alert alert-success alert-dismissible fade show"><?php echo $message; ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
 <?php if ($error): ?><div class="alert alert-danger alert-dismissible fade show"><?php echo $error; ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
 
-<?php if (has_role('customer') && !isset($_GET['pharma'])): ?>
-    <!-- Customer Pharmacy Selection -->
-    <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
-        <i class="fas fa-hospital fa-3x text-primary mb-3"></i>
-        <h3 class="fw-bold"><?php echo __('browse_drugs'); ?></h3>
-        <p class="text-muted mb-5"><?php echo __('select_local_pharma'); ?></p>
-        <div class="row g-4 justify-content-center">
-            <?php foreach ($active_pharmacies as $ph): ?>
-                <div class="col-md-4">
-                    <div class="card h-100 border-0 shadow-sm rounded-4 hover-lift p-4">
-                        <h5 class="fw-bold mb-2"><?php echo $ph['name']; ?></h5>
-                        <p class="small text-muted mb-4"><?php echo $ph['address']; ?></p>
-                        <a href="inventory.php?pharma=<?php echo $ph['id']; ?>" class="btn btn-primary rounded-pill w-100"><?php echo __('view_inventory'); ?></a>
+<?php if (has_role('customer')): ?>
+    <!-- Unified Customer Drug Search -->
+    <div class="mb-4">
+        <h2 class="fw-bold mb-1">Find Your Medicine</h2>
+        <p class="text-muted">Search across all pharmacies — see where it's available and at what price.</p>
+    </div>
+
+    <!-- Search Bar Row -->
+    <form method="GET" action="inventory.php" class="mb-4">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group shadow-sm">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-primary"></i></span>
+                    <input type="text" name="search" class="form-control border-start-0 ps-0" 
+                           placeholder="Search drug name, generic name, or category…"
+                           value="<?php echo htmlspecialchars($search_drug); ?>" autofocus>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select name="pharma" class="form-select shadow-sm">
+                    <option value="">All Pharmacies</option>
+                    <?php foreach ($active_pharmacies as $ph): ?>
+                        <option value="<?php echo $ph['id']; ?>" <?php echo ($selected_pharma == $ph['id']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($ph['name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100 rounded-pill shadow-sm">
+                    <i class="fas fa-filter me-1"></i> Filter
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <?php if (empty($medicines) && ($search_drug !== '' || $selected_pharma !== '')): ?>
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No medicines found matching your search.</h5>
+        <a href="inventory.php" class="btn btn-outline-primary rounded-pill mt-3 px-4">Clear Search</a>
+    </div>
+    <?php elseif (empty($medicines)): ?>
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+        <i class="fas fa-capsules fa-3x text-primary mb-3"></i>
+        <h5>Start by searching for a drug above</h5>
+        <p class="text-muted">Type a medicine name or pick a pharmacy to browse.</p>
+    </div>
+    <?php else: ?>
+    <!-- Results count -->
+    <div class="mb-3 d-flex align-items-center justify-content-between">
+        <span class="text-muted small"><?php echo count($medicines); ?> result(s) found</span>
+        <?php if ($search_drug || $selected_pharma): ?>
+            <a href="inventory.php" class="btn btn-sm btn-light rounded-pill"><i class="fas fa-times me-1"></i>Clear</a>
+        <?php endif; ?>
+    </div>
+
+    <!-- Drug Results Grid -->
+    <div class="row g-3 mb-4">
+        <?php foreach ($medicines as $m): ?>
+        <div class="col-md-4 col-sm-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 hover-lift">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-start justify-content-between mb-2">
+                        <div>
+                            <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($m['name']); ?></h6>
+                            <?php if ($m['generic_name']): ?>
+                            <div class="small text-muted"><?php echo htmlspecialchars($m['generic_name']); ?></div>
+                            <?php endif; ?>
+                        </div>
+                        <span class="badge bg-light text-dark border small"><?php echo htmlspecialchars($m['category'] ?? 'General'); ?></span>
+                    </div>
+
+                    <!-- Pharmacy Badge -->
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge rounded-pill px-3 py-1" style="background:linear-gradient(135deg,#FF69B4,#FF1493);color:white;font-size:0.72rem;">
+                            <i class="fas fa-hospital me-1"></i><?php echo htmlspecialchars($m['pharmacy_name']); ?>
+                        </span>
+                    </div>
+
+                    <!-- Price & Stock -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold text-primary fs-5"><?php echo format_currency($m['price']); ?></div>
+                            <div class="small text-muted">
+                                <i class="fas fa-boxes me-1"></i>
+                                <?php echo $m['quantity']; ?> <?php echo $m['unit'] ?? 'units'; ?> in stock
+                            </div>
+                        </div>
+                        <a href="cart.php?add=<?php echo $m['id']; ?>&pharma=<?php echo $m['pharmacy_id']; ?>" 
+                           class="btn btn-primary btn-sm rounded-pill px-3">
+                            <i class="fas fa-cart-plus me-1"></i>Add
+                        </a>
                     </div>
                 </div>
-            <?php endforeach; ?>
+            </div>
         </div>
+        <?php endforeach; ?>
     </div>
+    <?php endif; ?>
+
+<?php /* End customer view — skip the staff table below */ ?>
 <?php else: ?>
     <!-- Main Inventory View -->
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">

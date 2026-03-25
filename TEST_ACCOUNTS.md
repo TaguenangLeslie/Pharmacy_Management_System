@@ -1,51 +1,99 @@
-# 🔐 PharmaCare - Test Account Credentials
-
-Use the following credentials to explore the different roles and multi-pharmacy features of the system. 
+# 🔐 PharmaCare — Test Account Credentials
 
 > [!IMPORTANT]
-> All passwords listed below are case-sensitive. Run `install.php` first to ensure these accounts are created.
+> All passwords are case-sensitive. Run `install.php` first to ensure these accounts exist in your database.
 
 ---
 
-## 🛠️ System Administration
-| Role | Username | Email | Password |
-| :--- | :--- | :--- | :--- |
-| **Platform Admin** | `admin` | `admin@pharmacare.com` | `Admin@123` |
+## 🛠️ Platform Administration
+
+| Role | Username | Email | Password | Access |
+|:-----|:---------|:------|:---------|:-------|
+| **Global Admin** | `admin` | `admin@pharmacare.com` | `Admin@123` | Full platform control, no pharmacy affiliation |
+
+**Global Admin can:**
+- Approve / Suspend / **Delete** pharmacies
+- Directly **Add** a new pharmacy (immediately active)
+- View Platform Revenue (per-pharmacy tax breakdown)
+- Configure platform-wide tax rate
+- Manage all users system-wide
+- View audit logs, support inbox, database backup
 
 ---
 
-## 🏥 Pharmacy 1: Main PharmaCare (Retail)
+## 🏥 Pharmacy 1 — Main PharmaCare (Retail)
+
 | Role | Username | Email | Password |
-| :--- | :--- | :--- | :--- |
+|:-----|:---------|:------|:---------|
+| **Branch Admin** | *(none seeded — assign via admin → Users)* | — | — |
 | **Pharmacist** | `pharmacist` | `pharma@example.com` | `Pharma@123` |
 | **Cashier** | `cashier` | `cashier@example.com` | `Cashier@123` |
 
 ---
 
-## 🏢 Pharmacy 2: Elite Wellness (Wholesale)
+## 🏢 Pharmacy 2 — Elite Wellness (Wholesale)
+
 | Role | Username | Email | Password |
-| :--- | :--- | :--- | :--- |
+|:-----|:---------|:------|:---------|
 | **Pharmacist** | `elite_pharma` | `elite_ph@example.com` | `Elite@123` |
 | **Cashier** | `elite_cash` | `elite_cs@example.com` | `Elite@123` |
 
 ---
 
-## 🚑 Pharmacy 3: Community Clinic (Clinic)
+## 🚑 Pharmacy 3 — Community Clinic (Clinic)
+
 | Role | Username | Email | Password |
-| :--- | :--- | :--- | :--- |
+|:-----|:---------|:------|:---------|
 | **Pharmacist** | `clinic_pharma` | `clinic_ph@example.com` | `Clinic@123` |
 | **Cashier** | `clinic_cash` | `clinic_cs@example.com` | `Clinic@123` |
 
 ---
 
 ## 🛒 Customer Portal
+
 | Role | Username | Email | Password |
-| :--- | :--- | :--- | :--- |
+|:-----|:---------|:------|:---------|
 | **Test Customer** | `test_customer` | `customer@example.com` | `Customer@123` |
 
 ---
 
-## 📝 Usage Tips:
-1. **Admin Approval**: Register a new pharmacy while logged in as a normal user, then log in as `admin` to approve the request in the "Pharmacy Management" menu.
-2. **Cross-Pharmacy Shopping**: Log in as `test_customer`, go to the marketplace, and add drugs from different pharmacies (Main, Elite, Community) to your cart. 
-3. **POS Testing**: Log in as any `cashier` to process instant walk-in sales for their specific pharmacy.
+## 📝 Key Test Scenarios
+
+### 1. Pharmacy Registration → Auto Admin Upgrade
+1. Log in as `test_customer`
+2. Visit **Register Pharmacy** (link in navigation)
+3. Fill out the multi-step form and submit
+4. Log in as `admin` → go to **Pharmacy Management**
+5. Click **Approve** — the customer's account **instantly upgrades to Branch Admin**
+
+### 2. Admin Creates Pharmacy Directly
+1. Log in as `admin` → **Pharmacy Management**
+2. Click **Add Pharmacy** (top-right button)
+3. Fill form and submit — pharmacy is **immediately active**
+4. Assign a Branch Admin via **Users** page
+
+### 3. Delete a Pharmacy
+1. Log in as `admin` → **Pharmacy Management**
+2. Click **Delete** on any pharmacy and confirm
+3. All staff from that branch are demoted to `customer` role automatically
+
+### 4. Platform Tax Flow
+1. Log in as `admin` → **Settings** → set Platform Tax Rate (e.g. `2`)
+2. Log in as any cashier → make a sale via POS
+3. Log back in as `admin` → **Platform Revenue** — see the collected tax per pharmacy
+
+### 5. Language Toggle
+1. Click the 🌐 globe icon in the header
+2. Switch between **English** and **French**
+3. All UI labels change instantly and the preference saves to your database profile
+
+### 6. Cross-Pharmacy Shopping (Customer)
+1. Log in as `test_customer`
+2. Browse inventory from different pharmacies
+3. Add medicines from multiple branches to cart
+4. Checkout — separate invoices are generated per pharmacy
+
+### 7. POS — Pharmacist Pending Sale
+1. Log in as `pharmacist` → **POS**
+2. Add items to cart and click **Send to Cashier**
+3. Log in as `cashier` → **Pending Sales** — confirm the order

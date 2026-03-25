@@ -1,17 +1,20 @@
 # 📄 SYSTEM DEFENSE REPORT: PHARMACARE
-**Topic**: Design and Implementation of a Multi-Tenant Pharmacy Management System with Bilingual Support, E-Commerce Capabilities, and a Platform Revenue Engine.
+**Topic**: Design and Implementation of a Fully Dynamic, Multi-Tenant Pharmacy Management System with Bilingual Support, E-Commerce Capabilities, and a Platform Revenue Engine.
 
 **Presented By**: Taguenang Leslie  
 **Date**: March 2026  
-**Version**: PharmaCare v3.0
+**Version**: PharmaCare v3.1
 
 ---
 
 ## 1. ABSTRACT
 
-In the contemporary healthcare landscape, efficient drug distribution and management are of critical importance. Most existing pharmacy software solutions are either prohibitively expensive for small businesses, operate in isolation without network connectivity, or lack features essential for multi-branch operations.
+**PharmaCare** is a fully dynamic, database-driven, multi-tenant web application that manages pharmacy operations at both the branch and network level. Every user action — from inventory updates, sales, and expense entries, to language preferences, system settings, and pharmacy approvals — is immediately persisted to a relational MySQL database.
 
-**PharmaCare** addresses these gaps by providing a unified, multi-tenant web platform where independent pharmacies can manage their internal operations — inventory, point of sale, prescriptions, and finance — while simultaneously reaching customers through a centralized marketplace. The system introduces an innovative **Platform Revenue Engine** allowing the system owner to passively collect a configurable tax margin from all sales, and a complete **bilingual (English/French) interface** to serve diverse user populations.
+The platform introduces three distinctive engineering contributions:
+1. A **Platform Revenue Engine** enabling the system owner to collect a configurable tax margin from all sales across all branches, tracked in real time.
+2. **Full Bilingual Support (English/French)** with per-user preferences stored in the database and resolved dynamically using a custom translation function.
+3. A **Pharmacy Lifecycle Management** system allowing the Global Administrator to add, approve, suspend, or permanently delete pharmacies, with automatic staff role reassignment on approval or deletion.
 
 ---
 
@@ -21,183 +24,121 @@ In the contemporary healthcare landscape, efficient drug distribution and manage
 
 Small and medium-sized pharmacies in Cameroon and similar markets frequently face:
 
-- **Manual inventory tracking** leading to expired or out-of-stock drugs.
-- **No digital storefront** limiting customer reach to walk-ins only.
-- **Fragmented systems** making cross-pharmacy availability checking impossible for patients.
-- **No centralized revenue tracking** for SaaS operators managing multiple clients.
-- **Language barriers** in systems that only support a single language.
+- Manual inventory tracking leading to expired or out-of-stock drugs
+- No digital presence limiting customer reach to physical walk-ins only
+- Fragmented systems making cross-pharmacy drug availability impossible to check
+- No mechanism for a SaaS operator to passively earn from providing the platform
+- Language barriers in enterprise software that only supports a single language
 
 ### 2.2 Objectives
 
-This project was developed to:
-
-1. Automate inventory management, stock alerts, and expiry tracking.
-2. Provide a secure, multi-role Point of Sale terminal.
-3. Implement a multi-tenant environment where independent pharmacies register, are approved, and operate in full data isolation.
-4. Offer a professional e-commerce experience allowing customers to browse and order drugs across all pharmacies.
-5. Enable the platform owner to monetize the service through a built-in tax collection mechanism.
-6. Deliver a bilingual (English/French) user interface switchable per user.
-
-### 2.3 Scope
-
-The system covers the following user-facing areas:
-
-| Area | Covered |
-|------|---------|
-| Pharmacy Registration & Approval | ✅ |
-| Staff Management (Pharmacist, Cashier) | ✅ |
-| Drug Inventory CRUD | ✅ |
-| Point of Sale Terminal | ✅ |
-| Prescription Management | ✅ |
-| Customer E-Commerce Portal | ✅ |
-| Financial Reporting | ✅ |
-| Platform Tax & Revenue Dashboard | ✅ |
-| Bilingual EN/FR UI | ✅ |
-| Database Backup | ✅ |
-| Audit Logging | ✅ |
+1. Automate inventory management, stock alerts, and expiry monitoring
+2. Provide a secure, multi-role Point of Sale terminal
+3. Implement full multi-tenancy with strict data isolation between branches
+4. Offer a customer-facing e-commerce experience for cross-pharmacy ordering
+5. Allow the platform owner to monetize via built-in tax collection
+6. Support English and French UI languages switchable per user
+7. Enable the Global Admin to manage the full pharmacy lifecycle (add, approve, suspend, delete)
 
 ---
 
 ## 3. SYSTEM ARCHITECTURE
 
-### 3.1 Architectural Pattern
+### 3.1 Layers
 
-The system follows a modular **Client-Server Architecture** with clean layer separation:
+| Layer | Technology |
+|-------|-----------|
+| Presentation | HTML5, Bootstrap 5, Vanilla CSS/JS, Font Awesome 6 |
+| Logic | PHP 8+, RBAC, PDO |
+| Data | MySQL via PDO Prepared Statements |
+| Charting | Chart.js (CDN) |
 
-- **Presentation Layer**: Responsive HTML5/CSS3 interface using Bootstrap 5, Font Awesome 6, and Vanilla JavaScript. Features glassmorphism effects, gradient cards, and a pink premium theme.
-- **Logic Layer**: Server-side processing using PHP 8+ with Role-Based Access Control (RBAC). All business rules enforced here.
-- **Data Layer**: MySQL relational database accessed exclusively via PDO Prepared Statements.
+### 3.2 Multi-Tenancy Model
 
-```
-Browser (HTML/CSS/JS)
-        │  HTTP Request
-        ▼
-  Apache (XAMPP)
-        │
-        ▼
-  PHP 8+ Runtime
-  ┌─────────────────────────────────┐
-  │  includes/config/database.php  │ ← DB connection, constants, session
-  │  includes/functions/auth.php   │ ← RBAC, login, session guards
-  │  includes/functions/helpers.php│ ← Utilities, formatting, logging
-  │  includes/functions/lang.php   │ ← EN/FR translation dictionary
-  │  includes/templates/header.php │ ← Navigation sidebar + topbar
-  └─────────────────────────────────┘
-        │
-        ▼
-   MySQL Database (pharmacy_db)
-```
+Every core table (`medicines`, `sales`, `customers`, `suppliers`, `expenses`, `users`, `settings`, `audit_logs`) references `pharmacy_id`. All staff-facing queries are automatically scoped to the session's `pharmacy_id`. The Global Administrator (`pharmacy_id = NULL`) has read access across all branches.
 
-### 3.2 Multi-Tenancy Design
-
-Each pharmacy is a **tenant** identified by a unique `pharmacy_id`. Every data table (`medicines`, `sales`, `customers`, `suppliers`, `expenses`, `users`) carries this foreign key. All queries are automatically scoped to the session's `pharmacy_id`, guaranteeing complete data isolation between branches.
-
-The **Global Administrator** holds `pharmacy_id = NULL`, granting unrestricted read-access across all tenants for oversight, without belonging to any single branch.
-
-### 3.3 Database Entity Relationship Summary
-
-```
-pharmacies ──< users
-pharmacies ──< medicines ──< sale_items
-pharmacies ──< sales ──< sale_items
-pharmacies ──< suppliers
-pharmacies ──< customers
-pharmacies ──< expenses
-pharmacies ──< settings
-pharmacies ──< audit_logs
-users ──< sales
-users ──< audit_logs
-```
-
-**Key Schema Decisions:**
+### 3.3 Key Architectural Decisions
 
 | Decision | Rationale |
 |----------|-----------|
-| `users.pharmacy_id` allows NULL | Supports Global Admin and platform-level customers |
-| `settings` uses composite UNIQUE key on `(setting_key, pharmacy_id)` | Allows NULL `pharmacy_id` for global settings while preventing duplicate per-pharmacy keys |
-| `sales.platform_tax` column | Stores the exact platform fee per transaction for immutable audit trail |
-| `users.language` column | Persists per-user language preference across sessions |
+| `settings` table uses UNIQUE key (not composite PK) on `(setting_key, pharmacy_id)` | Allows `pharmacy_id = NULL` for global settings — composite PKs strictly forbid NULL |
+| `sales.platform_tax` column | Immutably records the exact fee per transaction for audit purposes |
+| `users.language` column | Persists per-user UI language preference across sessions/devices |
+| `install.php` as sole migration script | Centralizes all DB creation, schema upgrades, and seeding — no auto-migration on page load |
+| `process_sale.php` handles platform tax at commit time | Guarantees the global rate at the moment of sale is the one charged, not a cached value |
 
 ---
 
 ## 4. FUNCTIONAL MODULES
 
-### 4.1 Global Administration Module
+### 4.1 Global Administration
 
-The **Global System Administrator** (no pharmacy affiliation) has exclusive access to:
+The **Global System Administrator** (`pharmacy_id = NULL`) has exclusive access to:
 
-- **Pharmacy Management** (`pharmacies.php`): Review registration documents (license, owner ID, pharmacist credentials) and Approve / Suspend pharmacies.
-- **Platform Revenue** (`platform_revenue.php`): View today's, monthly, and lifetime tax earnings broken down per pharmacy with gross sales volume.
-- **Platform Tax Configuration** (`settings.php`): Set the system-wide tax percentage applied to every sale across all branches.
-- **Support Inbox** (`support_messages.php`): Handle public contact form submissions.
-- **Global Orders** (`manage_orders.php`): Monitor all customer orders network-wide.
-- **Audit Logs** (`audit_logs.php`): Full action log across all users and branches.
+**Pharmacy Lifecycle Management** (`pharmacies.php`):
+- **Add Pharmacy**: Modal form lets the admin directly create a pharmacy (immediately active). Saved to `pharmacies` table with `status = 'active'`.
+- **Approve Application**: Pending pharmacy applications submitted via `register_pharmacy.php` are reviewed here. On approval:
+  1. `pharmacies.status → 'active'`
+  2. Applicant's `users.role → 'admin'`
+  3. Applicant's `users.pharmacy_id → new pharmacy ID`
+  — All three changes occur in a single **database transaction**.
+- **Suspend**: Sets `status = 'suspended'`. Branch staff lose system access.
+- **Delete Permanently**: Removes the pharmacy. All associated staff are automatically set to `role = 'customer'` and `pharmacy_id = NULL` before the row is deleted, preventing orphaned accounts.
 
-### 4.2 Branch Administration Module
+**Platform Revenue** (`platform_revenue.php`):
+- Aggregates `SUM(platform_tax)` from the `sales` table grouped per `pharmacy_id`
+- Displays today's, monthly, and lifetime earnings with a per-pharmacy breakdown table
 
-Branch Admins manage their own pharmacy and cannot access other branches:
+**Platform Tax Configuration** (`settings.php`):
+- Only visible to the Global Admin
+- Saved to `settings` with `pharmacy_id = NULL`
+- Referenced in `process_sale.php` to calculate `platform_tax` on every sale
 
-- User creation and role assignment within their branch
+### 4.2 Branch Administration
+
+Branch Admins can manage their own pharmacy only:
+- Staff creation and role assignment within their branch
 - Branch-specific settings (currency, tax rate, system name)
-- Financial reports filtered to their data
+- Financial reports, expense tracking, audit logs
 
-### 4.3 Inventory Management (`inventory.php`)
+### 4.3 Inventory Management
 
-- Full CRUD (Add / Edit / Delete) for medicines
-- Fields: Name, Generic Name, Category, Supplier, Price, Cost Price, Quantity, Unit, Reorder Level, Expiry Date, Barcode
-- **Low Stock Alert**: Dashboard widget + notification bell when quantity ≤ reorder level
-- **Expiry Alert**: Dashboard widget with colour-coded urgency — medicine names are **clickable links** navigating to their inventory record
-- Global Admin sees all pharmacies' inventory, grouped by branch
+- Full CRUD (Add/Edit/Delete) for medicines saved to `medicines` table
+- Low Stock Alerts: widget + notification bell when `quantity ≤ reorder_level`
+- Expiry Alerts: colour-coded table on dashboard. Medicine names are **hyperlinks** to `inventory.php?search={name}`
+- Global Admin sees all pharmacies grouped; branch staff see their branch only
 
-### 4.4 Point of Sale Terminal (`pos.php`)
+### 4.4 Point of Sale (POS)
 
-- Searchable product grid populated from active inventory
-- JavaScript-powered live cart (no page reload)
-- Real-time subtotal, tax display, and grand total
-- **Pharmacist workflow**: Creates a *Pending Sale* forwarded to the Cashier queue
-- **Cashier workflow**: Confirms pending entries or makes direct sales
-- Payment methods: Cash / Card / Mobile Money
-- Generates a printable receipt (`receipt.php`)
+- JavaScript cart (no page reload); submitted via form to `process_sale.php`
+- `process_sale.php`: inserts `sales` + `sale_items`, decrements `medicines.quantity`, computes `platform_tax`
+- **Pharmacist flow**: creates `payment_status = pending` entry
+- **Cashier flow**: confirms from Pending Sales queue (`pending_sales.php`)
+- Printable receipt via `receipt.php`
 
-### 4.5 Platform Tax & Revenue Engine *(v3.0)*
+### 4.5 Customer E-Commerce Portal
 
-A distinctive feature that enables SaaS monetization:
+- Browse pharmacies → select branch → view inventory
+- Session-based cart with multi-pharmacy support
+- Smart checkout (`finalize_sale.php`): generates separate invoices per pharmacy involved
+- Prescription upload with status tracking
 
-1. Global Admin sets `platform_tax_rate` (e.g., 2%) in Settings — visible only to them.
-2. `process_sale.php` fetches this rate and computes `platform_tax = grand_total × rate / 100`.
-3. The value is saved in the `sales.platform_tax` column alongside the sale.
-4. **Platform Revenue page** aggregates these values per pharmacy and platform-wide, giving the Admin a real-time earnings dashboard.
+### 4.6 Bilingual Support (EN/FR)
 
-### 4.6 Customer Portal & E-Commerce
+```php
+// includes/functions/lang.php
+function __($key) {
+    global $translations;
+    $lang = $_SESSION['language'] ?? 'en';
+    return $translations[$lang][$key]
+        ?? $translations['en'][$key]
+        ?? $key;
+}
+```
 
-- Customers browse medicines by selecting a registered pharmacy (`inventory.php?pharma=X`)
-- Cart supports multiple medicines; persisted across pages in the PHP session
-- Smart checkout: generates separate invoices per pharmacy (`finalize_sale.php`)
-- Order history viewable in `orders.php`
-- Prescription upload and status tracking
-
-### 4.7 Prescription Management (`prescriptions.php`)
-
-- Pharmacists and Branch Admins can view, accept, or reject prescriptions
-- Customers submit prescriptions linked to their account
-- Status workflow: **Pending → Filled → Cancelled**
-
-### 4.8 Financial Reporting (`reports.php` / `expenses.php`)
-
-- Sales reports with date-range filtering
-- Expense tracking by category (Rent, Utilities, Salary, Supplies, Marketing, Other)
-- Visual sales trend chart (last 7 days via Chart.js)
-- Exportable data
-
-### 4.9 Bilingual Support — EN / FR *(v3.0)*
-
-Every user can select their preferred language independently:
-
-- Language saved in `users.language` column in the database
-- Loaded into `$_SESSION['language']` on login
-- Toggle via globe icon 🌐 in the top navigation bar
-- The `__($key)` function resolves the correct string from `lang.php` at runtime
-- Fully covers: Navigation, Dashboard, Stats Widgets, POS Labels, Inventory Tables, Action Buttons
+- Language stored in `users.language` column → loaded into session on login
+- Changed via globe icon in header → `change_language.php` updates both session AND database
+- Covers: Navigation, Dashboard, POS, Inventory tables, all action buttons
 
 ---
 
@@ -205,70 +146,74 @@ Every user can select their preferred language independently:
 
 ### 5.1 Security Architecture
 
-| Mechanism | Implementation |
-|-----------|---------------|
-| Password Security | PHP `password_hash()` / `password_verify()` with `PASSWORD_BCRYPT` |
-| SQL Injection | PDO Prepared Statements enforced throughout all database queries |
-| XSS Prevention | `htmlspecialchars()` applied to all dynamic output |
-| CSRF Protection | Session-bound token generated per-session |
-| Role Enforcement | `require_role()` and `has_role()` guards on every page |
-| Multi-Tenant Isolation | All queries automatically scoped by `$_SESSION['pharmacy_id']` |
-| File Upload Validation | MIME-type checking and size limits on document uploads |
-| Session Hardening | Session destroyed completely on logout; regenerated on login |
+| Protection | Method |
+|-----------|--------|
+| Passwords | `PASSWORD_BCRYPT` via `password_hash()` / `password_verify()` |
+| SQL Injection | PDO Prepared Statements — no string concatenation in queries |
+| XSS | `htmlspecialchars()` on all dynamic output |
+| CSRF | Session-bound token checked on sensitive POSTs |
+| Role Guards | `require_role()` / `has_role()` enforced on every page load |
+| Tenant Isolation | All queries scoped to `$_SESSION['pharmacy_id']` |
+| File Uploads | MIME-type and size validation on document uploads |
+| Session Security | Destroyed completely on logout; no persistent cookies |
 
-### 5.2 Database Architecture
+### 5.2 Data Persistence Architecture
 
-The `install.php` script is the **single source of truth** for all database operations:
+All data flows through the MySQL database via PDO:
 
-- Creates the MySQL database if it doesn't exist
-- Executes the full schema from `database/schema.sql`
-- Applies all schema upgrades via a `$columns_to_check` array (checks before altering to prevent duplicate column errors)
-- Creates new tables if missing
-- Seeds pharmacies, users, suppliers, medicines, and customers
-- Elevates the platform admin to Global status (`pharmacy_id = NULL`)
+```
+User Action → PHP Handler → PDO Prepared Statement → MySQL → Persisted
+```
 
-No other PHP file contains schema modifications, ensuring clean architecture.
+No feature relies on static files, in-memory state (beyond the session), or hardcoded values for runtime data.
 
-### 5.3 Portability
+### 5.3 Installation Architecture
 
-- Dynamic `BASE_URL` detection in `database.php` ensures assets and links work regardless of installation path (XAMPP subfolder, root, or renamed folder)
-- All file paths use `__DIR__`-based references, not hardcoded absolute paths
+`install.php` is the **only** script that modifies the database schema:
+- Creates database if missing
+- Executes `database/schema.sql`
+- Runs `$columns_to_check` array to safely apply all schema upgrades (Phase 26-32) without breaking existing data
+- Seeds pharmacies, users, suppliers, medicines, customers
+- No auto-migration on page load; `database.php` is purely a connection file
 
 ---
 
 ## 6. USER INTERFACE & DESIGN
 
-- **Theme**: Premium Pink Gradient (`#FF1493` Deep Pink as primary, `#FFB6C1` Light Pink as secondary)
-- **Layout**: Fixed sidebar navigation + fluid main content area
-- **Dark Mode**: Toggle preserved across pages via `localStorage`
-- **Responsive**: Bootstrap 5 grid adapts for tablet and mobile
-- **Micro-animations**: Hover lift effects, fade transitions, skeleton loading
-- **Glassmorphism**: Translucent card overlays on gradient backgrounds for depth
+- **Theme**: Deep Pink (`#FF1493`) primary, with glassmorphism card effects
+- **Layout**: Fixed left sidebar + fluid main content (Bootstrap 5 grid)
+- **Dark Mode**: Toggled and persisted via `localStorage`
+- **Responsive**: Mobile-first Bootstrap grid
+- **Charts**: Chart.js line graph with real DB data (last 7 days of sales)
+- **Notifications**: Bell icon with live counts for: Low Stock, Near Expiry, Pending Approvals, Support Messages
 
 ---
 
 ## 7. TESTING
 
-### 7.1 Test Accounts
+### Test Accounts (from `install.php` seed)
 
-| Username | Role | Branch |
-|----------|------|--------|
-| `admin` / `Admin@123` | Global Admin | Platform |
-| `pharmacist` / `Pharma@123` | Pharmacist | Main PharmaCare |
-| `cashier` / `Cashier@123` | Cashier | Main PharmaCare |
-| `elite_pharma` / `Elite@123` | Pharmacist | Elite Wellness |
-| `clinic_cash` / `Clinic@123` | Cashier | Community Clinic |
-| `test_customer` / `Customer@123` | Customer | Public |
+| Username | Password | Role | Branch |
+|----------|----------|------|--------|
+| `admin` | `Admin@123` | Global Admin | Platform |
+| `pharmacist` | `Pharma@123` | Pharmacist | Main PharmaCare |
+| `cashier` | `Cashier@123` | Cashier | Main PharmaCare |
+| `elite_pharma` | `Elite@123` | Pharmacist | Elite Wellness |
+| `clinic_cash` | `Clinic@123` | Cashier | Community Clinic |
+| `test_customer` | `Customer@123` | Customer | Public |
 
-### 7.2 Test Scenarios Verified
+### Verified Test Scenarios
 
-- ✅ Role isolation: cashier cannot access inventory edit
-- ✅ Multi-tenant isolation: pharmacist at Branch A cannot see Branch B data
-- ✅ Platform tax calculated and stored on every sale
-- ✅ Language switching persists after logout/login
-- ✅ Global Admin settings save without `pharmacy_id` constraint error
-- ✅ Expiring medicine links navigate to the correct inventory row
-- ✅ Platform Revenue aggregates correctly per-pharmacy
+- ✅ Pharmacy application → approval → customer auto-upgraded to admin
+- ✅ Admin creates pharmacy directly — immediately active
+- ✅ Delete pharmacy → all branch staff demoted to customer
+- ✅ Platform tax calculated and stored per sale
+- ✅ Platform Revenue shows correct per-pharmacy breakdown
+- ✅ Language toggle updates DB and persists after logout/login
+- ✅ Global Admin can save settings without `pharmacy_id` constraint error
+- ✅ Expiring medicine links route correctly to inventory search
+- ✅ Cashier cannot access inventory edit pages (RBAC enforced)
+- ✅ Branch A staff cannot see Branch B data (tenant isolation)
 
 ---
 
@@ -276,28 +221,28 @@ No other PHP file contains schema modifications, ensuring clean architecture.
 
 | Challenge | Solution |
 |-----------|----------|
-| MySQL `pharmacy_id` as Primary Key prevents NULL global settings | Restructured settings table with an auto-increment `id` and a UNIQUE composite key |
-| Language strings hardcoded after multiple dev phases | Systematic sweep replacing all static text with `__()` translation calls |
-| Auto-migration logic bloating database config | Centralized all schema upgrades exclusively in `install.php` |
-| Cart reservations causing stale stock holds | `cart_reservations` table with `expires_at` timestamp for TTL cleanup |
-| Pharmacist and Cashier POS role divergence | Separate submit logic based on `has_role('pharmacist')` — routes to pending vs direct completion |
+| MySQL composite PK blocks NULL `pharmacy_id` in settings | Rebuilt `settings` table with auto-increment PK + UNIQUE key on `(setting_key, pharmacy_id)` |
+| Auto-migration queries running on every page load | Removed from `database.php`, centralized all in `install.php` |
+| Language preference lost on session expiry | Stored in `users.language` column, reloaded from DB on login |
+| Pharmacy deletion leaving orphaned staff accounts | DELETE handler first sets all staff to `role='customer'`, `pharmacy_id=NULL` before deleting |
+| Pharmacist and Cashier POS role divergence | `has_role('pharmacist')` check routes to pending vs confirmed sale path |
+| `ON DUPLICATE KEY UPDATE` failing for NULL `pharmacy_id` | Replaced with explicit SELECT + conditional UPDATE/INSERT logic |
 
 ---
 
 ## 9. CONCLUSION & FUTURE WORK
 
-**PharmaCare v3.0** successfully demonstrates the feasibility of a commercially viable, multi-tenant healthcare SaaS platform. It bridges the gap between internal pharmacy operations and external customer service while providing the platform owner with a passive revenue mechanism and real-time financial visibility.
+**PharmaCare v3.1** delivers a production-grade, fully dynamic multi-tenant SaaS platform for pharmacy management. Every feature persists state to the database — no static data, no hardcoded runtime values. The Global Administrator has complete lifecycle control over the pharmacy network while each branch operates in full isolation.
 
-### Planned Future Enhancements
+### Planned Enhancements
 
-| Enhancement | Priority |
-|-------------|----------|
-| Mobile Money API integration (MTN MoMo / Orange Money) | High |
-| SMS/WhatsApp notification for low stock and order updates | High |
-| AI-driven demand forecasting from sales history | Medium |
-| Real-time pharmacist–customer chat | Medium |
-| Progressive Web App (PWA) offline support | Low |
-| Multi-currency support | Low |
+| Feature | Priority |
+|---------|----------|
+| MTN MoMo / Orange Money API integration | High |
+| SMS/Email order notifications | High |
+| AI demand forecasting from sales history | Medium |
+| Real-time pharmacist–customer messaging | Medium |
+| PWA offline support for POS | Low |
 
 ---
 
@@ -306,9 +251,8 @@ No other PHP file contains schema modifications, ensuring clean architecture.
 - PHP Documentation: https://www.php.net/docs.php
 - Bootstrap 5: https://getbootstrap.com/docs/5.3/
 - Chart.js: https://www.chartjs.org/docs/
-- MySQL 8 Reference: https://dev.mysql.com/doc/
+- MySQL Reference: https://dev.mysql.com/doc/
 - OWASP Security Cheatsheet: https://cheatsheetseries.owasp.org/
 
 ---
-
 *© 2026 Taguenang Leslie. All Rights Reserved.*
