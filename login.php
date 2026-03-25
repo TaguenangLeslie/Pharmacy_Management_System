@@ -38,7 +38,7 @@ include 'includes/templates/header.php';
     <div class="col-md-5 col-lg-4">
         <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
             <div class="pink-gradient p-5 text-center text-white">
-                <h1 class="display-6 fw-bold mb-0"><?php echo $system_name; ?></h1>
+                <h1 class="display-6 fw-bold mb-0"><?php echo APP_NAME; ?></h1>
                 <p class="mb-0 opacity-75">Pharmacy Management System</p>
             </div>
             <div class="card-body p-4 p-md-5">

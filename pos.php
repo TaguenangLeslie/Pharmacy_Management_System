@@ -8,6 +8,10 @@ require_once 'includes/functions/helpers.php';
 
 require_login();
 
+if (has_role('cashier')) {
+    redirect('pending_sales.php');
+}
+
 $page_title = __('pos');
 $active_page = 'pos';
 
@@ -184,7 +188,7 @@ include 'includes/templates/header.php';
                             <input type="hidden" name="customer_id" id="pos-customer-id" value="">
                         </div>
                         
-                        <div class="mb-3">
+                        <div class="mb-3" <?php echo has_role('pharmacist') ? 'style="display:none;"' : ''; ?>>
                             <label class="form-label small fw-bold">Payment Method</label>
                             <select name="payment_method" class="form-select">
                                 <option value="cash">Cash</option>
@@ -193,8 +197,13 @@ include 'includes/templates/header.php';
                             </select>
                         </div>
                         
+                        <?php if (has_role('pharmacist')): ?>
+                            <input type="hidden" name="is_pending" value="1">
+                        <?php endif; ?>
+                        
                         <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm" id="checkout-btn" disabled>
-                            <i class="fas fa-receipt me-1"></i> Confirm Sale
+                            <i class="fas fa-<?php echo has_role('pharmacist') ? 'paper-plane' : 'receipt'; ?> me-1"></i> 
+                            <?php echo has_role('pharmacist') ? 'Send to Cashier' : 'Confirm Sale'; ?>
                         </button>
                     </form>
                 </div>

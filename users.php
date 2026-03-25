@@ -22,7 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $full_name = sanitize_input($_POST['full_name']);
         $role = $_POST['role'];
         $is_active = isset($_POST['is_active']) ? 1 : 0;
-        $pharmacy_id = !empty($_POST['pharmacy_id']) ? $_POST['pharmacy_id'] : $_SESSION['pharmacy_id'];
+        
+        // Branch Admin can only create users for their own pharmacy
+        $pharmacy_id = $_SESSION['pharmacy_id'] ?: (!empty($_POST['pharmacy_id']) ? $_POST['pharmacy_id'] : null);
 
         if ($_POST['action'] === 'add') {
             $password = $_POST['password'];
@@ -98,11 +100,12 @@ try {
             FROM users u 
             LEFT JOIN pharmacies p ON u.pharmacy_id = p.id 
             LEFT JOIN prescriptions rx ON u.id = rx.user_id AND rx.pharmacy_id = ?
+            LEFT JOIN sales s ON u.id = s.user_id AND s.pharmacy_id = ?
             WHERE u.pharmacy_id = ? 
-               OR (u.role = 'customer' AND rx.id IS NOT NULL)
+               OR (u.role = 'customer' AND (rx.id IS NOT NULL OR s.id IS NOT NULL))
             ORDER BY u.created_at DESC
         ");
-        $stmt->execute([$pharmacy_id, $pharmacy_id]);
+        $stmt->execute([$pharmacy_id, $pharmacy_id, $pharmacy_id]);
     } else {
         $stmt = $pdo->query("SELECT u.*, p.name as pharmacy_name FROM users u LEFT JOIN pharmacies p ON u.pharmacy_id = p.id ORDER BY p.name ASC, u.created_at DESC");
     }
@@ -343,6 +346,10 @@ if (!$my_pharma) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <?php endif; ?>
+                        
+                        <?php if ($my_pharma): ?>
+                        <input type="hidden" name="pharmacy_id" value="<?php echo $my_pharma; ?>">
                         <?php endif; ?>
                         <div class="col-md-6 d-flex align-items-center mt-4">
                             <div class="form-check form-switch">

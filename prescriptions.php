@@ -51,6 +51,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['prescription_image']
     }
 }
 
+// Handle Prescription Deletion (Customer only if pending)
+if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
+    $id = $_GET['delete'];
+    $user_id = $_SESSION['user_id'];
+    try {
+        if (has_role('customer')) {
+            $stmt = $pdo->prepare("DELETE FROM prescriptions WHERE id = ? AND user_id = ? AND status = 'pending'");
+            $stmt->execute([$id, $user_id]);
+        } else { // Staff can delete if needed
+            $stmt = $pdo->prepare("DELETE FROM prescriptions WHERE id = ?");
+            $stmt->execute([$id]);
+        }
+        $message = "Prescription deleted successfully.";
+        log_activity($pdo, $_SESSION['user_id'], 'DELETE_PRESCRIPTION', 'prescriptions', $id);
+    } catch (PDOException $e) {
+        $error = "Error deleting prescription: " . $e->getMessage();
+    }
+}
+
+// Handle Prescription Update (POST)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_prescription') {
+    $id = $_POST['presc_id'];
+    $patient_name = sanitize_input($_POST['patient_name']);
+    $patient_age = $_POST['patient_age'];
+    $doctor_name = sanitize_input($_POST['doctor_name']);
+    $prescription_date = $_POST['prescription_date'];
+    $pharmacy_id = $_POST['pharmacy_id'];
+    
+    try {
+        if (has_role('customer')) {
+            $stmt = $pdo->prepare("UPDATE prescriptions SET patient_name = ?, patient_age = ?, doctor_name = ?, prescription_date = ?, pharmacy_id = ? WHERE id = ? AND user_id = ? AND status = 'pending'");
+            $stmt->execute([$patient_name, $patient_age, $doctor_name, $prescription_date, $pharmacy_id, $id, $_SESSION['user_id']]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE prescriptions SET patient_name = ?, patient_age = ?, doctor_name = ?, prescription_date = ?, pharmacy_id = ? WHERE id = ?");
+            $stmt->execute([$patient_name, $patient_age, $doctor_name, $prescription_date, $pharmacy_id, $id]);
+        }
+        $message = "Prescription updated successfully!";
+        log_activity($pdo, $_SESSION['user_id'], 'EDIT_PRESCRIPTION', 'prescriptions', $id);
+    } catch (PDOException $e) {
+        $error = "Error updating prescription: " . $e->getMessage();
+    }
+}
+
 // Handle Status Update
 if (isset($_GET['update_status']) && isset($_GET['id'])) {
     $id = $_GET['id'];
@@ -225,6 +268,20 @@ if (has_role('admin') && !$_SESSION['pharmacy_id']) {
                         <a href="<?php echo $p['image_path']; ?>" target="_blank" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-eye"></i> View
                         </a>
+                        <?php if (has_role('customer') && $p['status'] == 'pending'): ?>
+                        <button type="button" class="btn btn-sm btn-outline-info edit-presc" 
+                                data-id="<?php echo $p['id']; ?>"
+                                data-name="<?php echo htmlspecialchars($p['patient_name'], ENT_QUOTES); ?>"
+                                data-age="<?php echo $p['patient_age']; ?>"
+                                data-doctor="<?php echo htmlspecialchars($p['doctor_name'], ENT_QUOTES); ?>"
+                                data-date="<?php echo $p['prescription_date']; ?>"
+                                data-pharma="<?php echo $p['pharmacy_id']; ?>">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <a href="prescriptions.php?delete=<?php echo $p['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this prescription?')">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                        <?php endif; ?>
                         <?php if ($p['status'] == 'pending' && !has_role('customer')): ?>
                         <a href="prescriptions.php?update_status=filled&id=<?php echo $p['id']; ?>" class="btn btn-sm btn-success">
                             <i class="fas fa-check"></i> Fill
@@ -248,6 +305,8 @@ if (has_role('admin') && !$_SESSION['pharmacy_id']) {
         </div>
     </div>
     <?php endforeach; endif; ?>
+</div>
+
 </div>
 
 <!-- Upload Prescription Modal -->
@@ -303,4 +362,73 @@ if (has_role('admin') && !$_SESSION['pharmacy_id']) {
     </div>
 </div>
 
-<?php include 'includes/templates/footer.php'; ?>
+<!-- Edit Prescription Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header pink-gradient text-white">
+                <h5 class="modal-title">Edit Prescription</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="prescriptions.php" method="POST">
+                <input type="hidden" name="action" value="edit_prescription">
+                <input type="hidden" name="presc_id" id="edit-id">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Patient Name</label>
+                        <input type="text" name="patient_name" id="edit-name" class="form-control" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Patient Age</label>
+                            <input type="number" name="patient_age" id="edit-age" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Prescription Date</label>
+                            <input type="date" name="prescription_date" id="edit-date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Doctor Name</label>
+                        <input type="text" name="doctor_name" id="edit-doctor" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Pharmacy</label>
+                        <select name="pharmacy_id" id="edit-pharma" class="form-select" required>
+                            <option value="">-- Choose a Pharmacy --</option>
+                            <?php foreach ($pharmacies as $ph): ?>
+                                <option value="<?php echo $ph['id']; ?>"><?php echo $ph['name']; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="alert alert-info py-2 small">
+                        <i class="fas fa-info-circle me-1"></i> You can only edit the details. To change the image, please delete and upload again.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary shadow-sm">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php 
+$extra_js = "
+<script>
+$(document).ready(function() {
+    $('.edit-presc').click(function() {
+        $('#edit-id').val($(this).data('id'));
+        $('#edit-name').val($(this).data('name'));
+        $('#edit-age').val($(this).data('age'));
+        $('#edit-doctor').val($(this).data('doctor'));
+        $('#edit-date').val($(this).data('date'));
+        $('#edit-pharma').val($(this).data('pharma'));
+        $('#editModal').modal('show');
+    });
+});
+</script>
+";
+include 'includes/templates/footer.php'; 
+?>

@@ -34,7 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             throw new Exception("Target pharmacy is not defined.");
         }
 
-        // Calculate totals
         $subtotal = 0;
         foreach ($cart_data as $item) {
             $subtotal += $item['price'] * $item['quantity'];
@@ -42,18 +41,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         $discount = 0; 
         $grand_total = $subtotal - $discount;
 
+        $is_pending = isset($_POST['is_pending']) && $_POST['is_pending'] == '1';
+        $payment_status = $is_pending ? 'pending' : 'paid';
+        $order_status = $is_pending ? 'pending' : 'completed';
+        $pharmacist_id = has_role('pharmacist') ? $_SESSION['user_id'] : null;
+
         // 1. Insert Sales Record
-        $stmt = $pdo->prepare("INSERT INTO sales (invoice_no, customer_id, user_id, customer_name, total_amount, discount, grand_total, payment_method, payment_status, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO sales (invoice_no, customer_id, user_id, pharmacist_id, customer_name, total_amount, discount, grand_total, payment_method, payment_status, order_status, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([
             $invoice_no,
             $customer_id,
             $user_id,
+            $pharmacist_id,
             $customer_name,
             $subtotal,
             $discount,
             $grand_total,
             $payment_method,
-            'paid',
+            $payment_status,
+            $order_status,
             $ph_id
         ]);
         $sale_id = $pdo->lastInsertId();
@@ -82,8 +88,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         
         log_activity($pdo, $user_id, 'PROCESS_SALE', 'sales', $sale_id);
         
-        // Redirect to receipt view
-        redirect("receipt.php?id=" . $sale_id);
+        // Redirect
+        if ($is_pending) {
+            redirect("pos.php?success=sent_to_cashier");
+        } else {
+            redirect("receipt.php?id=" . $sale_id);
+        }
 
     } catch (Exception $e) {
         $pdo->rollBack();

@@ -16,9 +16,13 @@ $sale_id = $_GET['id'];
 
 try {
     // Fetch sale details with pharmacy info
-    $stmt = $pdo->prepare("SELECT s.*, u.full_name as cashier_name, p.name as pharmacy_name, p.address as pharmacy_address, p.phone as pharmacy_phone 
+    $stmt = $pdo->prepare("SELECT s.*, 
+                                 u_init.full_name as pharmacist_name,
+                                 u_proc.full_name as cashier_name,
+                                 p.name as pharmacy_name, p.address as pharmacy_address, p.phone as pharmacy_phone 
                            FROM sales s 
-                           LEFT JOIN users u ON s.user_id = u.id 
+                           LEFT JOIN users u_init ON s.pharmacist_id = u_init.id 
+                           LEFT JOIN users u_proc ON s.processed_by = u_proc.id
                            JOIN pharmacies p ON s.pharmacy_id = p.id
                            WHERE s.id = ?");
     $stmt->execute([$sale_id]);
@@ -111,7 +115,8 @@ include 'includes/templates/header.php';
 
                 <div class="mt-5 pt-4 border-top text-center text-muted small">
                     <p class="mb-1">Payment Method: <strong><?php echo strtoupper($sale['payment_method']); ?></strong></p>
-                    <p class="mb-0">Served by: <strong><?php echo $sale['cashier_name']; ?></strong></p>
+                    <p class="mb-0">Pharmacist: <strong><?php echo $sale['pharmacist_name'] ?: 'N/A'; ?></strong></p>
+                    <p class="mb-0">Cashier: <strong><?php echo $sale['cashier_name'] ?: ($sale['pharmacist_name'] ?: 'System'); ?></strong></p>
                     <p class="mt-4 fw-bold">Thank you for your business!</p>
                 </div>
             </div>

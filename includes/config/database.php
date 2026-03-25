@@ -18,6 +18,26 @@ try {
     die("Database Connection Error: " . $e->getMessage());
 }
 
+// Auto-Migration Check (Phase 26)
+try {
+    $stmt = $pdo->query("SHOW COLUMNS FROM prescriptions LIKE 'user_id'");
+    if ($stmt->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE prescriptions ADD COLUMN user_id INT AFTER prescription_date, ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL");
+    }
+    
+    $stmt = $pdo->query("SHOW COLUMNS FROM sales LIKE 'pharmacist_id'");
+    if ($stmt->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE sales ADD COLUMN pharmacist_id INT AFTER user_id, ADD FOREIGN KEY (pharmacist_id) REFERENCES users(id) ON DELETE SET NULL");
+    }
+    
+    $stmt = $pdo->query("SHOW COLUMNS FROM sales LIKE 'processed_by'");
+    if ($stmt->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE sales ADD COLUMN processed_by INT AFTER pharmacist_id, ADD FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL");
+    }
+} catch (Exception $e) {
+    // Silently fail or log error
+}
+
 // Global Constants
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

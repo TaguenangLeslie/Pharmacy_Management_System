@@ -10,8 +10,13 @@
     --white: #FFFFFF;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --border-radius: 12px;
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    --gradient-1: linear-gradient(135deg, #FF69B4 0%, #FF1493 100%);
+    --gradient-2: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    --gradient-3: linear-gradient(135deg, #FF6B6B 0%, #EE0979 100%);
+    --gradient-4: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }
 
 body {
@@ -305,4 +310,67 @@ body[data-theme='dark'] .btn-white {
         margin: 20px 0;
         width: 100%;
     }
+}
+/* Premium Dashboard Styles */
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: var(--border-radius);
+    color: var(--text-color);
+}
+
+.premium-card {
+    border: none;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+.premium-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+    z-index: -1;
+    transition: all 0.5s ease;
+}
+
+.premium-card:hover::before {
+    transform: translate(25%, 25%);
+}
+
+.gradient-pink { background: var(--gradient-1) !important; }
+.gradient-orange { background: var(--gradient-2) !important; }
+.gradient-red { background: var(--gradient-3) !important; }
+.gradient-blue { background: var(--gradient-4) !important; }
+
+.stats-icon-box {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.bg-soft-warning { background-color: rgba(255, 215, 0, 0.1); }
+.bg-soft-danger { background-color: rgba(255, 107, 107, 0.1); }
+
+/* Custom Scrollbar for Dashboard Alerts */
+.table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: var(--secondary-color);
+    border-radius: 10px;
 }

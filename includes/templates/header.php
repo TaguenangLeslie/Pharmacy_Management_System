@@ -107,7 +107,6 @@ cleanup_expired_reservations($pdo);
                             if ($support_msg_count > 0) $show_badge = true;
                         }
                         ?>
->
                         <div class="dropdown">
                             <button class="btn btn-sm btn-white shadow-sm rounded-circle position-relative" id="notifDropdown" data-bs-toggle="dropdown" data-bs-strategy="fixed" data-bs-offset="0,8" aria-expanded="false" style="width: 35px; height: 35px;">
                                 <i class="fas fa-bell text-primary"></i>
@@ -241,6 +240,14 @@ cleanup_expired_reservations($pdo);
                         <?php endif; ?>
 
                         <?php if (has_role(['admin', 'pharmacist', 'cashier'])): ?>
+                        <?php if (has_role(['admin', 'cashier'])): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($active_page == 'pending_sales') ? 'active' : ''; ?>" href="pending_sales.php">
+                                <i class="fas fa-hand-holding-usd me-2"></i> Pending Sales
+                            </a>
+                        </li>
+                        <?php endif; ?>
+                        
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'customers') ? 'active' : ''; ?>" href="customers.php">
                                 <i class="fas fa-user-friends me-2"></i> <?php echo __('customers'); ?>
@@ -258,19 +265,25 @@ cleanup_expired_reservations($pdo);
                             </a>
                         </li>
                         <?php endif; ?>
+                        
+                        <?php if (!has_role('cashier')): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'pos') ? 'active' : ''; ?>" href="pos.php">
                                 <i class="fas fa-shopping-cart me-2"></i> <?php echo __('pos'); ?>
                             </a>
                         </li>
                         <?php endif; ?>
+                        <?php endif; ?>
 
                         <?php if (has_role('admin')): ?>
+
+                        <?php if (has_role(['admin', 'pharmacist'])): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'suppliers') ? 'active' : ''; ?>" href="suppliers.php">
                                 <i class="fas fa-truck me-2"></i> <?php echo __('suppliers'); ?>
                             </a>
                         </li>
+                        <?php endif; ?>
                         <?php if (has_role('admin') && !$_SESSION['pharmacy_id']): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'manage_orders') ? 'active' : ''; ?>" href="manage_orders.php">

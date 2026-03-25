@@ -17,7 +17,7 @@ $error   = $_SESSION['flash_error']   ?? '';
 unset($_SESSION['flash_message'], $_SESSION['flash_error']);
 
 // Handle Add/Edit Medicine (Restricted to Staff)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist', 'cashier'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist'])) {
     if (isset($_POST['action'])) {
         $name = sanitize_input($_POST['name']);
         $generic_name = sanitize_input($_POST['generic_name']);
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist', 'c
 }
 
 // Handle Delete (Restricted to Staff)
-if (isset($_GET['delete']) && has_role(['admin', 'pharmacist', 'cashier'])) {
+if (isset($_GET['delete']) && has_role(['admin', 'pharmacist'])) {
     $id = $_GET['delete'];
     try {
         $stmt = $pdo->prepare("DELETE FROM medicines WHERE id = ? AND pharmacy_id = ?");

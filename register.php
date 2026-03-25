@@ -57,7 +57,7 @@ include 'includes/templates/header.php';
     <div class="col-md-6 col-lg-5">
         <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
             <div class="pink-gradient p-4 text-center text-white">
-                <h2 class="fw-bold mb-0">Join <?php echo $system_name; ?></h2>
+                <h2 class="fw-bold mb-0">Join <?php echo APP_NAME; ?></h2>
                 <p class="mb-0 opacity-75">Create your account to start ordering.</p>
             </div>
             <div class="card-body p-4 p-md-5">

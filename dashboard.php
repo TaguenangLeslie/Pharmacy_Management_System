@@ -20,7 +20,7 @@ $active_page = 'dashboard';
 
 // Fetch some stats with multi-tenant support
 try {
-    $pharma_id = $_SESSION['pharmacy_id'] ?? null;
+    $pharma_id = (isset($_SESSION['pharmacy_id']) && $_SESSION['pharmacy_id'] > 0) ? intval($_SESSION['pharmacy_id']) : null;
     $ph_filter = $pharma_id ? " WHERE pharmacy_id = $pharma_id" : "";
     $ph_filter_and = $pharma_id ? " AND pharmacy_id = $pharma_id" : "";
 
@@ -65,7 +65,9 @@ include 'includes/templates/header.php';
     <h1 class="h2">Dashboard Overview</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
-            <a href="pos.php" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1"></i> New Sale</a>
+            <?php if (!has_role('cashier')): ?>
+                <a href="pos.php" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1"></i> New Sale</a>
+            <?php endif; ?>
             <button type="button" class="btn btn-sm btn-outline-secondary">Export</button>
         </div>
         <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle">
@@ -77,60 +79,60 @@ include 'includes/templates/header.php';
 <!-- Stats Cards -->
 <div class="row">
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-0 pink-gradient text-white h-100 shadow">
+        <div class="card premium-card gradient-pink text-white h-100 shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-white-50 small text-uppercase fw-bold"><?php echo __('today_sales'); ?></div>
                         <div class="h3 mb-0 fw-bold"><?php echo format_currency($today_sales); ?></div>
                     </div>
-                    <div class="bg-white bg-opacity-25 rounded-circle p-3">
-                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    <div class="stats-icon-box">
+                        <i class="fas fa-dollar-sign fa-lg"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-0 bg-warning text-white h-100 shadow">
+        <div class="card premium-card gradient-orange text-white h-100 shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-white-50 small text-uppercase fw-bold"><?php echo __('low_stock'); ?></div>
                         <div class="h3 mb-0 fw-bold"><?php echo $low_stock_count; ?></div>
                     </div>
-                    <div class="bg-white bg-opacity-25 rounded-circle p-3">
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    <div class="stats-icon-box">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-0 bg-danger text-white h-100 shadow">
+        <div class="card premium-card gradient-red text-white h-100 shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-white-50 small text-uppercase fw-bold"><?php echo __('expiring_soon'); ?></div>
                         <div class="h3 mb-0 fw-bold"><?php echo $expiring_soon; ?></div>
                     </div>
-                    <div class="bg-white bg-opacity-25 rounded-circle p-3">
-                        <i class="fas fa-clock fa-2x"></i>
+                    <div class="stats-icon-box">
+                        <i class="fas fa-clock fa-lg"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-0 bg-info text-white h-100 shadow">
+        <div class="card premium-card gradient-blue text-white h-100 shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-white-50 small text-uppercase fw-bold"><?php echo __('total_medicines'); ?></div>
                         <div class="h3 mb-0 fw-bold"><?php echo $total_medicines; ?></div>
                     </div>
-                    <div class="bg-white bg-opacity-25 rounded-circle p-3">
-                        <i class="fas fa-pills fa-2x"></i>
+                    <div class="stats-icon-box">
+                        <i class="fas fa-pills fa-lg"></i>
                     </div>
                 </div>
             </div>
@@ -141,7 +143,7 @@ include 'includes/templates/header.php';
 <div class="row">
     <!-- Sales Chart -->
     <div class="col-lg-8 mb-4">
-        <div class="card h-100">
+        <div class="card glass-card h-100 border-0 shadow-sm">
             <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-4 px-4">
                 <h5 class="mb-0">Sales Analytics</h5>
                 <i class="fas fa-ellipsis-v text-muted"></i>
@@ -154,7 +156,7 @@ include 'includes/templates/header.php';
     
     <!-- Recent Transactions -->
     <div class="col-lg-4 mb-4">
-        <div class="card h-100">
+        <div class="card glass-card h-100 border-0 shadow-sm">
             <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-4 px-4">
                 <h5 class="mb-0"><?php echo __('recent_sales'); ?></h5>
                 <a href="reports.php?type=sales" class="small text-primary text-decoration-none">View All</a>
@@ -185,6 +187,102 @@ include 'includes/templates/header.php';
     </div>
 </div>
 
+<?php if ($low_stock_count > 0 || $expiring_soon > 0): ?>
+<div class="row">
+    <?php if ($low_stock_count > 0): ?>
+    <div class="col-lg-6 mb-4">
+        <div class="card glass-card h-100 overflow-hidden border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-warning"><i class="fas fa-exclamation-triangle me-2"></i> Low Stock Alerts</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Medicine</th>
+                                <th>In Stock</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php 
+                            $stmt = $pdo->prepare("SELECT id, name, quantity, unit, reorder_level FROM medicines WHERE quantity <= reorder_level $ph_filter_and LIMIT 5");
+                            $stmt->execute();
+                            while($m = $stmt->fetch()): ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold"><?php echo $m['name']; ?></div>
+                                    <div class="small text-muted">Level: <?php echo $m['reorder_level']; ?></div>
+                                </td>
+                                <td><span class="badge bg-soft-warning text-warning"><?php echo $m['quantity']; ?> <?php echo $m['unit']; ?></span></td>
+                                <td class="text-end pe-4">
+                                    <a href="inventory.php?search=<?php echo urlencode($m['name']); ?>" class="btn btn-sm btn-light border">Restock</a>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php if ($low_stock_count > 5): ?>
+            <div class="card-footer bg-white border-0 text-center pb-3">
+                <a href="inventory.php" class="small text-decoration-none">View All Low Stock</a>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($expiring_soon > 0): ?>
+    <div class="col-lg-6 mb-4">
+        <div class="card glass-card h-100 overflow-hidden border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-danger"><i class="fas fa-clock me-2"></i> Expiring Soon</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Medicine</th>
+                                <th>Expiry Date</th>
+                                <th class="text-end pe-4">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php 
+                            $stmt = $pdo->prepare("SELECT id, name, expiry_date FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 90 DAY) AND expiry_date > CURDATE() $ph_filter_and LIMIT 5");
+                            $stmt->execute();
+                            while($m = $stmt->fetch()): 
+                                $days = (strtotime($m['expiry_date']) - time()) / (60 * 60 * 24);
+                                $color = $days < 30 ? 'danger' : 'warning';
+                            ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold"><?php echo $m['name']; ?></div>
+                                </td>
+                                <td><span class="text-<?php echo $color; ?>"><?php echo date('M d, Y', strtotime($m['expiry_date'])); ?></span></td>
+                                <td class="text-end pe-4">
+                                    <span class="badge bg-light text-<?php echo $color; ?> border"><?php echo ceil($days); ?> days left</span>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php if ($expiring_soon > 5): ?>
+            <div class="card-footer bg-white border-0 text-center pb-3">
+                <a href="inventory.php" class="small text-decoration-none">View All Expiring</a>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <?php
 // Fetch chart data (Last 7 days)
 $chart_labels = [];
@@ -212,15 +310,17 @@ $extra_js = '
         data: {
             labels: ' . json_encode($chart_labels) . ',
             datasets: [{
-                label: "Daily Sales (' . ($app_settings['currency'] ?? '$') . ')",
+                label: \'Sales (FCFA)\',
                 data: ' . json_encode($chart_data) . ',
-                backgroundColor: "rgba(255, 105, 180, 0.2)",
-                borderColor: "rgba(255, 105, 180, 1)",
-                borderWidth: 3,
-                tension: 0.4,
+                borderColor: \'#FF1493\',
+                backgroundColor: \'rgba(255, 20, 147, 0.1)\',
+                borderWidth: 4,
                 fill: true,
-                pointBackgroundColor: "rgba(255, 105, 180, 1)",
-                pointBorderColor: "#fff",
+                tension: 0.4,
+                pointBackgroundColor: \'#fff\',
+                pointBorderColor: \'#FF1493\',
+                pointBorderWidth: 2,
+                pointRadius: 4,
                 pointHoverRadius: 6
             }]
         },
