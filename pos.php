@@ -104,15 +104,15 @@ include 'includes/templates/header.php';
                     <table class="table table-hover align-middle mb-0">
                         <thead class="sticky-top bg-light">
                             <tr>
-                                <th class="ps-4">Medicine</th>
-                                <th>Price</th>
-                                <th>Stock</th>
-                                <th class="text-center pe-4">Action</th>
+                                <th class="ps-4"><?php echo __('medicine'); ?></th>
+                                <th><?php echo __('price'); ?></th>
+                                <th><?php echo __('stock'); ?></th>
+                                <th class="text-center pe-4"><?php echo __('action'); ?></th>
                             </tr>
                         </thead>
                         <tbody id="pos-product-list">
                             <?php if (empty($all_medicines)): ?>
-                            <tr><td colspan="4" class="text-center py-5 text-muted">No medicines available in stock.</td></tr>
+                            <tr><td colspan="4" class="text-center py-5 text-muted"><?php echo __('no_medicines_stock'); ?></td></tr>
                             <?php else: foreach ($all_medicines as $med): ?>
                             <tr class="product-row" data-id="<?php echo $med['id']; ?>" data-name="<?php echo strtolower($med['name']); ?>">
                                 <td class="ps-4">
@@ -127,7 +127,7 @@ include 'includes/templates/header.php';
                                             data-name="<?php echo $med['name']; ?>" 
                                             data-price="<?php echo $med['price']; ?>"
                                             data-stock="<?php echo $med['quantity']; ?>">
-                                        <i class="fas fa-plus me-1"></i> Add
+                                        <i class="fas fa-plus me-1"></i> <?php echo __('add'); ?>
                                     </button>
                                 </td>
                             </tr>
@@ -143,14 +143,14 @@ include 'includes/templates/header.php';
     <div class="col-lg-5">
         <div class="card border-0 shadow-sm sticky-top" style="top: 2rem;">
             <div class="card-header bg-white border-0 py-3">
-                <h5 class="mb-0">Current Order</h5>
+                <h5 class="mb-0"><?php echo __('current_order'); ?></h5>
             </div>
             <div class="card-body p-0">
                 <div id="cart-container" class="px-3" style="max-height: 300px; overflow-y: auto;">
                     <table class="table table-borderless align-middle">
                         <tbody id="cart-items">
                             <!-- Items added via JS -->
-                            <tr class="cart-empty-msg"><td colspan="3" class="text-center py-5 text-muted">Cart is empty</td></tr>
+                            <tr class="cart-empty-msg"><td colspan="3" class="text-center py-5 text-muted"><?php echo __('cart_empty'); ?></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -159,15 +159,15 @@ include 'includes/templates/header.php';
                 
                 <div class="p-3">
                     <div class="d-flex justify-content-between mb-2">
-                        <span>Subtotal</span>
+                        <span><?php echo __('subtotal'); ?></span>
                         <span id="cart-subtotal" class="fw-bold">0 FCFA</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>Tax (0%)</span>
+                        <span><?php echo __('tax'); ?> (0%)</span>
                         <span id="cart-tax" class="fw-bold">0 FCFA</span>
                     </div>
                     <div class="d-flex justify-content-between mb-4">
-                        <h4 class="mb-0">Total</h4>
+                        <h4 class="mb-0"><?php echo __('total'); ?></h4>
                         <h4 id="cart-total" class="mb-0 text-primary fw-bold">0 FCFA</h4>
                     </div>
                     
@@ -176,8 +176,8 @@ include 'includes/templates/header.php';
                         <input type="hidden" name="pharmacy_id" value="<?php echo $pharmacy_id; ?>">
                         
                         <div class="mb-3">
-                            <label class="form-label small fw-bold">Select or Enter Customer <span class="text-danger">*</span></label>
-                            <input type="text" name="customer_search" id="pos-customer-search" class="form-control shadow-none" placeholder="Type name, email, or ID..." list="customer-list" required value="Walk-in Customer">
+                            <label class="form-label small fw-bold"><?php echo __('select_customer'); ?> <span class="text-danger">*</span></label>
+                            <input type="text" name="customer_search" id="pos-customer-search" class="form-control shadow-none" placeholder="Type name, email, or ID..." list="customer-list" required value="<?php echo __('walk_in_customer'); ?>">
                             <datalist id="customer-list">
                                 <?php foreach($customers as $c): ?>
                                 <option value="<?php echo htmlspecialchars($c['name']); ?>" data-id="<?php echo $c['id']; ?>">
@@ -189,11 +189,11 @@ include 'includes/templates/header.php';
                         </div>
                         
                         <div class="mb-3" <?php echo has_role('pharmacist') ? 'style="display:none;"' : ''; ?>>
-                            <label class="form-label small fw-bold">Payment Method</label>
+                            <label class="form-label small fw-bold"><?php echo __('payment_method'); ?></label>
                             <select name="payment_method" class="form-select">
-                                <option value="cash">Cash</option>
-                                <option value="card">Card</option>
-                                <option value="mobile">Mobile Money</option>
+                                <option value="cash"><?php echo __('cash'); ?></option>
+                                <option value="card"><?php echo __('card'); ?></option>
+                                <option value="mobile"><?php echo __('mobile_money'); ?></option>
                             </select>
                         </div>
                         
@@ -203,7 +203,7 @@ include 'includes/templates/header.php';
                         
                         <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm" id="checkout-btn" disabled>
                             <i class="fas fa-<?php echo has_role('pharmacist') ? 'paper-plane' : 'receipt'; ?> me-1"></i> 
-                            <?php echo has_role('pharmacist') ? 'Send to Cashier' : 'Confirm Sale'; ?>
+                            <?php echo has_role('pharmacist') ? __('send_to_cashier') : __('confirm_sale'); ?>
                         </button>
                     </form>
                 </div>
@@ -225,7 +225,7 @@ $extra_js = <<<JS
         cartTable.empty();
         
         if (cart.length === 0) {
-            cartTable.append("<tr class=\"cart-empty-msg\"><td colspan=\"3\" class=\"text-center py-5 text-muted\">Cart is empty</td></tr>");
+            cartTable.append("<tr class=\"cart-empty-msg\"><td colspan=\"3\" class=\"text-center py-5 text-muted\"><?php echo __('cart_empty'); ?></td></tr>");
             $("#checkout-btn").prop("disabled", true);
             $("#cart-subtotal, #cart-total").text("0 FCFA");
             return;

@@ -172,7 +172,7 @@ include 'includes/templates/header.php';
                     </td>
                         
                     <td><span class="badge <?php echo $status_class; ?> rounded-pill px-3"><?php echo ucfirst($p['status']); ?></span></td>
-                    <td><?php echo $p['available']; ?>
+                    <td><?php echo $p['available'] ?? 'N/A'; ?>
                             
                         </td>
                     <td class="text-end pe-4">

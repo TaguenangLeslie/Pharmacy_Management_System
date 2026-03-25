@@ -139,15 +139,15 @@ include 'includes/templates/header.php';
     <!-- Customer Pharmacy Selection -->
     <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
         <i class="fas fa-hospital fa-3x text-primary mb-3"></i>
-        <h3 class="fw-bold">Browse Drugs by Pharmacy</h3>
-        <p class="text-muted mb-5">Please select a local pharmacy to view their available medicine inventory.</p>
+        <h3 class="fw-bold"><?php echo __('browse_drugs'); ?></h3>
+        <p class="text-muted mb-5"><?php echo __('select_local_pharma'); ?></p>
         <div class="row g-4 justify-content-center">
             <?php foreach ($active_pharmacies as $ph): ?>
                 <div class="col-md-4">
                     <div class="card h-100 border-0 shadow-sm rounded-4 hover-lift p-4">
                         <h5 class="fw-bold mb-2"><?php echo $ph['name']; ?></h5>
                         <p class="small text-muted mb-4"><?php echo $ph['address']; ?></p>
-                        <a href="inventory.php?pharma=<?php echo $ph['id']; ?>" class="btn btn-primary rounded-pill w-100">View Inventory</a>
+                        <a href="inventory.php?pharma=<?php echo $ph['id']; ?>" class="btn btn-primary rounded-pill w-100"><?php echo __('view_inventory'); ?></a>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -157,10 +157,10 @@ include 'includes/templates/header.php';
     <!-- Main Inventory View -->
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold">Medicine Inventory</h5>
+            <h5 class="mb-0 fw-bold"><?php echo __('medicine_inventory'); ?></h5>
             <?php if (!has_role('customer')): ?>
                 <button class="btn btn-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#medicineModal">
-                    <i class="fas fa-plus me-1"></i> Add Medicine
+                    <i class="fas fa-plus me-1"></i> <?php echo __('add_medicine'); ?>
                 </button>
             <?php endif; ?>
         </div>
@@ -168,17 +168,17 @@ include 'includes/templates/header.php';
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4">Medicine</th>
-                        <th>Category</th>
-                        <th><?php echo has_role('customer') ? 'Pharmacy' : 'Supplier'; ?></th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th class="text-end pe-4">Actions</th>
+                        <th class="ps-4"><?php echo __('medicine'); ?></th>
+                        <th><?php echo __('category'); ?></th>
+                        <th><?php echo has_role('customer') ? __('pharmacy') : __('supplier'); ?></th>
+                        <th><?php echo __('price'); ?></th>
+                        <th><?php echo __('stock'); ?></th>
+                        <th class="text-end pe-4"><?php echo __('actions'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($medicines)): ?>
-                        <tr><td colspan="6" class="text-center py-5 text-muted">No medicines found.</td></tr>
+                        <tr><td colspan="6" class="text-center py-5 text-muted"><?php echo __('no_medicines_found'); ?></td></tr>
                     <?php else: 
                         $current_pharma_group = '';
                         $is_global_admin = (has_role('admin') && !$_SESSION['pharmacy_id']);

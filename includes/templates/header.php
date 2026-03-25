@@ -237,7 +237,7 @@ cleanup_expired_reservations($pdo);
                         <?php else: ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'explore') ? 'active' : ''; ?>" href="explore.php">
-                                <i class="fas fa-search me-2"></i> Explore
+                                <i class="fas fa-search me-2"></i> <?php echo __('explore'); ?>
                             </a>
                         </li>
                         <?php endif; ?>
@@ -251,7 +251,7 @@ cleanup_expired_reservations($pdo);
                         <?php if (has_role('customer')): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'orders') ? 'active' : ''; ?>" href="orders.php">
-                                <i class="fas fa-shopping-bag me-2"></i> My Orders
+                                <i class="fas fa-shopping-bag me-2"></i> <?php echo __('my_orders'); ?>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -265,7 +265,7 @@ cleanup_expired_reservations($pdo);
                         <?php if (has_role(['admin', 'cashier'])): ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo ($active_page == 'pending_sales') ? 'active' : ''; ?>" href="pending_sales.php">
-                                <i class="fas fa-hand-holding-usd me-2"></i> Pending Sales
+                                <i class="fas fa-hand-holding-usd me-2"></i> <?php echo __('pending_sales'); ?>
                             </a>
                         </li>
                         <?php endif; ?>
