@@ -83,6 +83,7 @@ include 'includes/templates/header.php';
                     <th>Business & Legal</th>
                     <th>Verification Proofs</th>
                     <th>Status</th>
+                    <th>openning/closing time</th>
                     <th class="text-end pe-4">Actions</th>
                 </tr>
             </thead>
@@ -169,7 +170,11 @@ include 'includes/templates/header.php';
                         $modals_html .= ob_get_clean(); 
                         ?>
                     </td>
+                        
                     <td><span class="badge <?php echo $status_class; ?> rounded-pill px-3"><?php echo ucfirst($p['status']); ?></span></td>
+                    <td><?php echo $p['available']; ?>
+                            
+                        </td>
                     <td class="text-end pe-4">
                         <div class="btn-group">
                             <?php if ($p['status'] !== 'active'): ?>

@@ -14,8 +14,9 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pharmacy_name = sanitize_input($_POST['pharmacy_name']);
     $address = sanitize_input($_POST['address']);
+    
     $phone = sanitize_input($_POST['phone']);
-    $email = sanitize_input($_POST['email']);
+    
     $license_no = sanitize_input($_POST['license_no']);
     $pharmacy_type = sanitize_input($_POST['pharmacy_type']);
     
@@ -28,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $required_docs = ['owner_id_doc', 'pharmacy_license_doc', 'business_reg_doc', 'pharmacist_doc'];
     $uploaded_docs = [];
     $upload_error = false;
+    $available = sanitize_input($_POST['available']);
 
     if (empty($pharmacy_name) || empty($license_no) || empty($owner_full_name) || empty($business_reg_no)) {
         $error = "All business name, license numbers, and owner details are required.";
@@ -76,14 +78,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$upload_error) {
                 // Insert new pharmacy as pending with ALL legal data
                 $stmt = $pdo->prepare("INSERT INTO pharmacies 
-                    (name, address, phone, email, license_no, pharmacy_type, owner_id, owner_full_name, owner_id_doc, pharmacy_license_doc, business_reg_no, business_reg_doc, pharmacist_name, pharmacist_license_no, pharmacist_doc, status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
+                    (name, address, phone, license_no, pharmacy_type, owner_id, owner_full_name, owner_id_doc, pharmacy_license_doc, business_reg_no, business_reg_doc, pharmacist_name, pharmacist_license_no, pharmacist_doc, status, available) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                 
                 $stmt->execute([
-                    $pharmacy_name, $address, $phone, $email, $license_no, $pharmacy_type, $_SESSION['user_id'],
+                    $pharmacy_name, $address, $phone, $license_no, $pharmacy_type, $_SESSION['user_id'],
                     $owner_full_name, $uploaded_docs['owner_id_doc'], $uploaded_docs['pharmacy_license_doc'],
                     $business_reg_no, $uploaded_docs['business_reg_doc'],
-                    $pharmacist_name, $pharmacist_license_no, $uploaded_docs['pharmacist_doc']
+                    $pharmacist_name, $pharmacist_license_no, $uploaded_docs['pharmacist_doc'],
+                    $available
                 ]);
                 
                 $pharmacy_id = $pdo->lastInsertId();
@@ -158,6 +161,10 @@ include 'includes/templates/header.php';
                     <div class="mb-4">
                         <label class="form-label fw-bold small text-uppercase">Full Address</label>
                         <textarea name="address" class="form-control bg-light border-0" rows="2" placeholder="Where is your pharmacy located?"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase">Openning/closing time</label>
+                        <input type="text" name="available" class="form-control bg-light border-0" rows="2" placeholder="H24">
                     </div>
 
                     <h5 class="mb-4 text-primary border-bottom pb-2 mt-5"><i class="fas fa-user-shield me-2"></i> Ownership & Identity</h5>

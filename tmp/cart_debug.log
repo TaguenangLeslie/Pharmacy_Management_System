@@ -215,3 +215,245 @@
 )
 
 [2026-03-14 18:06:53] HIT: cart.php | Method: GET | POST: []
+[2026-03-17 16:50:41] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 16:50:46] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 16:50:51] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 16:50:56] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 16:51:01] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 16:51:06] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 16:52:54] HIT: ajax_inventory.php | Action: reserve
+[2026-03-17 16:52:55] HIT: cart.php | Method: POST | POST: {"action":"add","id":"12","name":"Insulin","price":"4500.00","pharmacy_id":"3","pharmacy_name":"Community Clinic","quantity":"1"}
+[2026-03-17 16:52:55] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 12
+    [name] => Insulin
+    [price] => 4500.00
+    [pharmacy_id] => 3
+    [pharmacy_name] => Community Clinic
+    [quantity] => 1
+)
+
+[2026-03-17 16:52:57] HIT: cart.php | Method: GET | POST: []
+[2026-03-17 17:06:11] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:16] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:21] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:26] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:31] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:36] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:41] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:46] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:51] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:06:56] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:07:01] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:07:06] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:07:11] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:07:16] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:07:21] HIT: ajax_inventory.php | Action: poll
+[2026-03-17 17:07:28] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:11:27] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:12:52] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:12:57] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:02] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:07] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:12] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:17] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:22] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:27] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:32] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:37] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:42] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:47] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:52] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:13:57] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:02] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:07] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:12] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:17] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:19] HIT: ajax_inventory.php | Action: reserve
+[2026-03-18 11:14:22] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:27] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:28] HIT: ajax_inventory.php | Action: reserve
+[2026-03-18 11:14:32] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:37] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:14:42] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:16:52] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:08] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:13] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:18] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:26] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:31] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:36] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:41] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:46] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:51] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:19:56] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:01] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:06] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:11] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:16] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:21] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:26] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:31] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:36] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:41] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 11:20:46] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:20] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:25] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:30] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:35] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:40] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:45] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:50] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:34:55] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:00] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:05] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:20] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:25] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:30] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:35] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:40] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:45] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:50] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:35:55] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:00] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:05] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:20] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:25] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:30] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:35] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:40] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:45] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:50] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:55] HIT: ajax_inventory.php | Action: poll
+[2026-03-18 14:36:57] HIT: ajax_inventory.php | Action: reserve
+[2026-03-18 14:37:00] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:14:16] HIT: ajax_inventory.php | Action: reserve
+[2026-03-19 09:14:16] HIT: cart.php | Method: POST | POST: {"action":"add","id":"5","name":"Paracetamol","price":"500.00","pharmacy_id":"2","pharmacy_name":"Elite Wellness","quantity":"1"}
+[2026-03-19 09:14:16] Cart request (AJAX): Array
+(
+    [action] => add
+    [id] => 5
+    [name] => Paracetamol
+    [price] => 500.00
+    [pharmacy_id] => 2
+    [pharmacy_name] => Elite Wellness
+    [quantity] => 1
+)
+
+[2026-03-19 09:15:38] HIT: cart.php | Method: GET | POST: []
+[2026-03-19 09:47:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:20] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:25] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:30] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:35] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:40] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:45] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:50] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:47:55] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:00] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:05] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:20] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:25] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:30] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:35] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:40] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:45] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:50] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:48:55] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:49:00] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:49:05] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:49:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-19 09:49:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 02:09:05] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 02:09:06] HIT: ajax_inventory.php | Action: reserve
+[2026-03-25 02:09:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 02:09:11] HIT: ajax_inventory.php | Action: reserve
+[2026-03-25 02:09:13] HIT: ajax_inventory.php | Action: reserve
+[2026-03-25 02:09:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:04:29] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:04:34] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:04:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:04:44] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:04:49] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:04:54] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:04:59] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:04] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:09] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:14] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:19] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:24] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:29] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:34] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:44] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:49] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:54] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:05:59] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:04] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:09] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:14] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:19] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:24] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:29] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:34] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:45] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:50] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:06:55] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:00] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:05] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:20] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:25] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:30] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:35] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:07:40] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:08:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:09:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:10:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:11:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:12:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:13:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:14:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:15:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:16:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:17:39] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:17:44] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:17:50] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:17:55] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:00] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:05] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:20] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:25] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:30] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:35] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:40] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:54] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:54] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:18:59] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:05] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:10] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:15] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:20] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:25] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:30] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:35] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:40] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:45] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:50] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:19:55] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:20:00] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:20:21] HIT: ajax_inventory.php | Action: poll
+[2026-03-25 09:20:24] HIT: ajax_inventory.php | Action: poll
