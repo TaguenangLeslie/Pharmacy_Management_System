@@ -115,6 +115,17 @@ include 'includes/templates/header.php';
                             <input type="number" step="0.01" name="settings[tax_rate]" class="form-control" value="<?php echo $settings['tax_rate'] ?? '0'; ?>">
                         </div>
                         
+                        <?php if (!isset($_SESSION['pharmacy_id'])): ?>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-danger">Platform Tax Rate (%)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" name="settings[platform_tax_rate]" class="form-control border-danger" value="<?php echo $settings['platform_tax_rate'] ?? '0'; ?>" title="Profit margin taken by the System Admin">
+                                <span class="input-group-text bg-danger text-white"><i class="fas fa-percent"></i></span>
+                            </div>
+                            <div class="form-text small text-danger"><i class="fas fa-info-circle"></i> Applied to all sales system-wide</div>
+                        </div>
+                        <?php endif; ?>
+                        
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Default Language</label>
                             <select name="settings[language]" class="form-select">

@@ -65,6 +65,7 @@ function login_user($pdo, $username, $password) {
         $_SESSION['role'] = $user['role'];
         $_SESSION['avatar'] = $user['avatar'];
         $_SESSION['pharmacy_id'] = $user['pharmacy_id'];
+        $_SESSION['lang'] = $user['language'] ?? 'en'; // Load user preference
 
         // Update last login
         $stmt = $pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?");

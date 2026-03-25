@@ -46,8 +46,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         $order_status = $is_pending ? 'pending' : 'completed';
         $pharmacist_id = has_role('pharmacist') ? $_SESSION['user_id'] : null;
 
+        // Get Global Platform Tax Rate
+        $stmt_tax = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'platform_tax_rate' AND pharmacy_id IS NULL");
+        $tax_rate_val = $stmt_tax->fetchColumn();
+        $platform_tax_rate = $tax_rate_val ? (float)$tax_rate_val : 0;
+        $platform_tax = $grand_total * ($platform_tax_rate / 100);
+
         // 1. Insert Sales Record
-        $stmt = $pdo->prepare("INSERT INTO sales (invoice_no, customer_id, user_id, pharmacist_id, customer_name, total_amount, discount, grand_total, payment_method, payment_status, order_status, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO sales (invoice_no, customer_id, user_id, pharmacist_id, customer_name, total_amount, discount, grand_total, platform_tax, payment_method, payment_status, order_status, pharmacy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([
             $invoice_no,
             $customer_id,
@@ -57,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             $subtotal,
             $discount,
             $grand_total,
+            $platform_tax,
             $payment_method,
             $payment_status,
             $order_status,

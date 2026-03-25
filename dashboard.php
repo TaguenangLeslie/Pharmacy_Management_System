@@ -29,6 +29,14 @@ try {
     $stmt->execute();
     $today_sales = $stmt->fetchColumn() ?: 0;
 
+    // 1b. Today's Platform Profit
+    $today_profit = 0;
+    if (!$pharma_id) {
+        $stmt = $pdo->prepare("SELECT SUM(platform_tax) FROM sales WHERE DATE(sale_date) = CURDATE()");
+        $stmt->execute();
+        $today_profit = $stmt->fetchColumn() ?: 0;
+    }
+
     // 2. Low Stock Count
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM medicines WHERE quantity <= reorder_level $ph_filter_and");
     $stmt->execute();
@@ -83,11 +91,18 @@ include 'includes/templates/header.php';
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="text-white-50 small text-uppercase fw-bold"><?php echo __('today_sales'); ?></div>
-                        <div class="h3 mb-0 fw-bold"><?php echo format_currency($today_sales); ?></div>
+                        <div class="text-white-50 small text-uppercase fw-bold">
+                            <?php echo !$pharma_id ? 'Tax Profit (Today)' : __('today_sales'); ?>
+                        </div>
+                        <div class="h3 mb-0 fw-bold">
+                            <?php echo format_currency(!$pharma_id ? $today_profit : $today_sales); ?>
+                        </div>
+                        <?php if (!$pharma_id): ?>
+                        <div class="small mt-1 opacity-75">Gross Sales: <?php echo format_currency($today_sales); ?></div>
+                        <?php endif; ?>
                     </div>
                     <div class="stats-icon-box">
-                        <i class="fas fa-dollar-sign fa-lg"></i>
+                        <i class="fas <?php echo !$pharma_id ? 'fa-hand-holding-usd' : 'fa-dollar-sign'; ?> fa-lg"></i>
                     </div>
                 </div>
             </div>

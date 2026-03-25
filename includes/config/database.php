@@ -34,6 +34,17 @@ try {
     if ($stmt->rowCount() == 0) {
         $pdo->exec("ALTER TABLE sales ADD COLUMN processed_by INT AFTER pharmacist_id, ADD FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL");
     }
+    
+    // Phase 27: Language Switch and Platform Tax
+    $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'language'");
+    if ($stmt->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'en' AFTER role");
+    }
+    
+    $stmt = $pdo->query("SHOW COLUMNS FROM sales LIKE 'platform_tax'");
+    if ($stmt->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE sales ADD COLUMN platform_tax DECIMAL(10,2) DEFAULT 0 AFTER discount");
+    }
 } catch (Exception $e) {
     // Silently fail or log error
 }

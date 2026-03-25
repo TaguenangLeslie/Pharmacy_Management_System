@@ -28,7 +28,9 @@ try {
 } catch (PDOException $e) {}
 
 $system_name = $app_settings['system_name'] ?? APP_NAME;
-$_SESSION['lang'] = $app_settings['language'] ?? 'en';
+if (!isset($_SESSION['lang'])) {
+    $_SESSION['lang'] = $app_settings['language'] ?? 'en';
+}
 
 // Clean up any stale stock reservations
 cleanup_expired_reservations($pdo);
@@ -107,6 +109,26 @@ cleanup_expired_reservations($pdo);
                             if ($support_msg_count > 0) $show_badge = true;
                         }
                         ?>
+                        <!-- Language Switcher -->
+                        <div class="dropdown me-3">
+                            <button class="btn btn-sm btn-white shadow-sm rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 35px; height: 35px;">
+                                <i class="fas fa-globe text-primary"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
+                                <li><h6 class="dropdown-header">Select Language</h6></li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center <?php echo $_SESSION['lang'] === 'en' ? 'active bg-primary text-white' : ''; ?>" href="change_language.php?lang=en">
+                                        🇺🇸 English
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center <?php echo $_SESSION['lang'] === 'fr' ? 'active bg-primary text-white' : ''; ?>" href="change_language.php?lang=fr">
+                                        🇫🇷 Français
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
                         <div class="dropdown">
                             <button class="btn btn-sm btn-white shadow-sm rounded-circle position-relative" id="notifDropdown" data-bs-toggle="dropdown" data-bs-strategy="fixed" data-bs-offset="0,8" aria-expanded="false" style="width: 35px; height: 35px;">
                                 <i class="fas fa-bell text-primary"></i>
