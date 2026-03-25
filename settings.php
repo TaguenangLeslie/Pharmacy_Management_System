@@ -22,8 +22,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         try {
             $pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
-            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value, pharmacy_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
-            $stmt->execute([$key, $value, $pharmacy_id, $value]);
+            
+            // Handle unique constraints correctly when pharmacy_id is NULL
+            if ($pharmacy_id === null) {
+                $check = $pdo->prepare("SELECT 1 FROM settings WHERE setting_key = ? AND pharmacy_id IS NULL");
+                $check->execute([$key]);
+            } else {
+                $check = $pdo->prepare("SELECT 1 FROM settings WHERE setting_key = ? AND pharmacy_id = ?");
+                $check->execute([$key, $pharmacy_id]);
+            }
+            
+            if ($check->fetch()) {
+                if ($pharmacy_id === null) {
+                    $update = $pdo->prepare("UPDATE settings SET setting_value = ? WHERE setting_key = ? AND pharmacy_id IS NULL");
+                    $update->execute([$value, $key]);
+                } else {
+                    $update = $pdo->prepare("UPDATE settings SET setting_value = ? WHERE setting_key = ? AND pharmacy_id = ?");
+                    $update->execute([$value, $key, $pharmacy_id]);
+                }
+            } else {
+                $insert = $pdo->prepare("INSERT INTO settings (setting_key, setting_value, pharmacy_id) VALUES (?, ?, ?)");
+                $insert->execute([$key, $value, $pharmacy_id]);
+            }
         } catch (PDOException $e) {
             $error = "Error updating settings: " . $e->getMessage();
         }

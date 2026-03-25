@@ -141,11 +141,12 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 -- 9. Settings Table
 CREATE TABLE IF NOT EXISTS settings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
     setting_key VARCHAR(50),
     setting_value TEXT,
     pharmacy_id INT, -- NULL for global system settings, INT for pharmacy settings
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (setting_key, pharmacy_id),
+    UNIQUE KEY unique_setting (setting_key, pharmacy_id),
     FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE CASCADE
 );
 

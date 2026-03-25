@@ -69,7 +69,13 @@ try {
         'support_messages' => [
             'is_read' => "ALTER TABLE support_messages ADD COLUMN is_read TINYINT DEFAULT 0 AFTER message"
         ],
+        'sales' => [
+            'pharmacist_id' => "ALTER TABLE sales ADD COLUMN pharmacist_id INT AFTER user_id, ADD FOREIGN KEY (pharmacist_id) REFERENCES users(id) ON DELETE SET NULL",
+            'processed_by' => "ALTER TABLE sales ADD COLUMN processed_by INT AFTER pharmacist_id, ADD FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL",
+            'platform_tax' => "ALTER TABLE sales ADD COLUMN platform_tax DECIMAL(10,2) DEFAULT 0 AFTER discount"
+        ],
         'users' => [
+            'language' => "ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'en' AFTER role",
             'last_notif_dismissal' => "ALTER TABLE users ADD COLUMN last_notif_dismissal TIMESTAMP NULL DEFAULT NULL"
         ]
     ];
