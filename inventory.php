@@ -73,10 +73,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role(['admin', 'pharmacist'])) 
 if (isset($_GET['delete']) && has_role(['admin', 'pharmacist'])) {
     $id = $_GET['delete'];
     try {
-        $stmt = $pdo->prepare("DELETE FROM medicines WHERE id = ? AND pharmacy_id = ?");
-        $stmt->execute([$id, $_SESSION['pharmacy_id']]);
-        log_activity($pdo, $_SESSION['user_id'], 'DELETE_MEDICINE', 'medicines', $id);
-        $_SESSION['flash_message'] = "Medicine deleted successfully!";
+        if (has_role('admin') && !isset($_SESSION['pharmacy_id'])) {
+            // Global Admin can delete any medicine
+            $stmt = $pdo->prepare("DELETE FROM medicines WHERE id = ?");
+            $stmt->execute([$id]);
+        } else {
+            // Branch Staff can only delete their own
+            $stmt = $pdo->prepare("DELETE FROM medicines WHERE id = ? AND pharmacy_id = ?");
+            $stmt->execute([$id, $_SESSION['pharmacy_id']]);
+        }
+        
+        if ($stmt->rowCount() > 0) {
+            log_activity($pdo, $_SESSION['user_id'], 'DELETE_MEDICINE', 'medicines', $id);
+            $_SESSION['flash_message'] = "Medicine deleted successfully!";
+        } else {
+            $_SESSION['flash_error'] = "Medicine not found or access denied.";
+        }
     } catch (PDOException $e) {
         $_SESSION['flash_error'] = "Error deleting medicine: " . $e->getMessage();
     }
