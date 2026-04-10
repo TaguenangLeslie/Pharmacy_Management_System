@@ -57,7 +57,16 @@ try {
 
     // 2b. Schema Upgrade (Add columns to existing tables if missing)
     $columns_to_check = [
+        'users' => [
+            'id' => "ALTER TABLE users ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
+            'language' => "ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'en' AFTER role",
+            'last_notif_dismissal' => "ALTER TABLE users ADD COLUMN last_notif_dismissal TIMESTAMP NULL DEFAULT NULL"
+        ],
+        'settings' => [
+            'id' => "ALTER TABLE settings ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST"
+        ],
         'pharmacies' => [
+            'id' => "ALTER TABLE pharmacies ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'license_no' => "ALTER TABLE pharmacies ADD COLUMN license_no VARCHAR(50) AFTER email",
             'pharmacy_type' => "ALTER TABLE pharmacies ADD COLUMN pharmacy_type ENUM('Retail', 'Wholesale', 'Hospital', 'Clinic') DEFAULT 'Retail' AFTER license_no",
             'owner_full_name' => "ALTER TABLE pharmacies ADD COLUMN owner_full_name VARCHAR(100) AFTER owner_id",
@@ -70,29 +79,31 @@ try {
             'pharmacist_doc' => "ALTER TABLE pharmacies ADD COLUMN pharmacist_doc VARCHAR(255) AFTER pharmacist_license_no"
         ],
         'customers' => [
+            'id' => "ALTER TABLE customers ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'pharmacy_id' => "ALTER TABLE customers ADD COLUMN pharmacy_id INT NULL AFTER id, ADD INDEX(pharmacy_id)"
         ],
         'suppliers' => [
+            'id' => "ALTER TABLE suppliers ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'pharmacy_id' => "ALTER TABLE suppliers ADD COLUMN pharmacy_id INT NULL AFTER id, ADD INDEX(pharmacy_id)"
         ],
         'prescriptions' => [
+            'id' => "ALTER TABLE prescriptions ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'user_id' => "ALTER TABLE prescriptions ADD COLUMN user_id INT NULL AFTER id, ADD INDEX(user_id)"
         ],
         'medicines' => [
+            'id' => "ALTER TABLE medicines ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'reorder_level' => "ALTER TABLE medicines ADD COLUMN reorder_level INT DEFAULT 10 AFTER unit",
             'barcode' => "ALTER TABLE medicines ADD COLUMN barcode VARCHAR(50) AFTER expiry_date"
         ],
         'support_messages' => [
+            'id' => "ALTER TABLE support_messages ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'is_read' => "ALTER TABLE support_messages ADD COLUMN is_read TINYINT DEFAULT 0 AFTER message"
         ],
         'sales' => [
+            'id' => "ALTER TABLE sales ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'pharmacist_id' => "ALTER TABLE sales ADD COLUMN pharmacist_id INT AFTER user_id, ADD FOREIGN KEY (pharmacist_id) REFERENCES users(id) ON DELETE SET NULL",
             'processed_by' => "ALTER TABLE sales ADD COLUMN processed_by INT AFTER pharmacist_id, ADD FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL",
             'platform_tax' => "ALTER TABLE sales ADD COLUMN platform_tax DECIMAL(10,2) DEFAULT 0 AFTER discount"
-        ],
-        'users' => [
-            'language' => "ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'en' AFTER role",
-            'last_notif_dismissal' => "ALTER TABLE users ADD COLUMN last_notif_dismissal TIMESTAMP NULL DEFAULT NULL"
         ]
     ];
 
@@ -207,7 +218,7 @@ try {
     $pdo->exec("UPDATE users SET is_active = 1 WHERE is_active IS NULL");
     
     // Seed Global Platform Tax Rate if missing
-    $stmt = $pdo->prepare("SELECT id FROM settings WHERE setting_key = 'platform_tax_rate' AND pharmacy_id IS NULL");
+    $stmt = $pdo->prepare("SELECT 1 FROM settings WHERE setting_key = 'platform_tax_rate' AND pharmacy_id IS NULL LIMIT 1");
     $stmt->execute();
     if (!$stmt->fetch()) {
         $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value, pharmacy_id) VALUES ('platform_tax_rate', '2.00', NULL)");
@@ -218,7 +229,7 @@ try {
     // 6. Seed Medicines & Customers for all Pharmacies
     foreach ($pharma_ids as $p_name => $p_id) {
         // Seed Supplier per pharmacy
-        $stmt = $pdo->prepare("SELECT id FROM suppliers WHERE pharmacy_id = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT 1 FROM suppliers WHERE pharmacy_id = ? LIMIT 1");
         $stmt->execute([$p_id]);
         if (!$stmt->fetch()) {
             $stmt = $pdo->prepare("INSERT INTO suppliers (name, contact_person, phone, pharmacy_id) VALUES (?, 'Mr. Supplier', '655000000', ?)");
@@ -240,7 +251,7 @@ try {
         }
 
         // Seed Customers per pharmacy
-        $stmt = $pdo->prepare("SELECT id FROM customers WHERE pharmacy_id = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT 1 FROM customers WHERE pharmacy_id = ? LIMIT 1");
         $stmt->execute([$p_id]);
         if (!$stmt->fetch()) {
             $customers = [

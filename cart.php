@@ -203,7 +203,16 @@ if ($action === 'clear') {
     redirect('inventory.php');
 }
 
-// If just 'view', show the cart page
+// Group items by pharmacy
+$grouped_cart = [];
+if (!empty($_SESSION['cart'])) {
+    foreach ($_SESSION['cart'] as $i => $item) {
+        $item['original_index'] = $i;
+        $grouped_cart[$item['pharmacy_id']]['name'] = $item['pharmacy_name'];
+        $grouped_cart[$item['pharmacy_id']]['items'][] = $item;
+    }
+}
+
 $page_title = 'My Shopping Cart';
 $active_page = 'cart';
 include 'includes/templates/header.php';
@@ -222,84 +231,86 @@ include 'includes/templates/header.php';
 </div>
 
 <div class="row">
-    <div class="col-lg-8">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th class="ps-4">Medicine</th>
-                            <th>Pharmacy</th>
-                            <th>Price</th>
-                            <th>Qty</th>
-                            <th>Total</th>
-                            <th class="text-end pe-4"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php 
-                        $grand_total = 0;
-                        if (empty($_SESSION['cart'])): 
-                        ?>
-                        <tr><td colspan="6" class="text-center py-5 text-muted">Your cart is empty. <a href="inventory.php">Go shopping!</a></td></tr>
-                        <?php else: foreach ($_SESSION['cart'] as $i => $item): 
-                            $item_total = $item['price'] * $item['quantity'];
-                            $grand_total += $item_total;
-                        ?>
-                        <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold"><?php echo $item['name']; ?></div>
-                            </td>
-                            <td><span class="badge bg-light text-primary border"><?php echo $item['pharmacy_name']; ?></span></td>
-                            <td><?php echo format_currency($item['price']); ?></td>
-                            <td>
-                                <input type="number" class="form-control form-control-sm update-qty" 
-                                       style="width: 70px;" 
-                                       data-index="<?php echo $i; ?>" 
-                                       value="<?php echo $item['quantity']; ?>" 
-                                       min="1">
-                            </td>
-                            <td class="fw-bold"><?php echo format_currency($item_total); ?></td>
-                            <td class="text-end pe-4">
-                                <a href="cart.php?action=remove&index=<?php echo $i; ?>" class="btn btn-sm text-danger"><i class="fas fa-trash"></i></a>
-                            </td>
-                        </tr>
-                        <?php endforeach; endif; ?>
-                    </tbody>
-                </table>
+    <div class="col-lg-12">
+        <?php if (empty($grouped_cart)): ?>
+            <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+                <i class="fas fa-shopping-basket fa-4x text-light mb-4"></i>
+                <h3 class="fw-bold">Your cart is empty</h3>
+                <p class="text-muted">Explore our pharmacies to find the medicines you need.</p>
+                <div class="mt-3">
+                    <a href="inventory.php" class="btn btn-primary rounded-pill px-5">Go Shopping</a>
+                </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-4">
-        <div class="card border-0 shadow rounded-4 p-4 sticky-top" style="top: 20px;">
-            <h5 class="fw-bold mb-4">Order Summary</h5>
-            <div class="d-flex justify-content-between mb-2">
-                <span>Subtotal</span>
-                <span class="fw-bold"><?php echo format_currency($grand_total); ?></span>
+        <?php else: ?>
+            <?php foreach ($grouped_cart as $pharma_id => $data): 
+                $pharma_total = 0;
+            ?>
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+                <div class="card-header bg-white p-4 border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold text-primary">
+                        <i class="fas fa-hospital me-2"></i> <?php echo $data['name']; ?>
+                    </h5>
+                    <span class="badge bg-light text-primary border rounded-pill px-3">
+                        <?php echo count($data['items']); ?> Items
+                    </span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small">
+                            <tr>
+                                <th class="ps-4">Medicine</th>
+                                <th>Price</th>
+                                <th>Qty</th>
+                                <th>Total</th>
+                                <th class="text-end pe-4"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($data['items'] as $item): 
+                                $item_total = $item['price'] * $item['quantity'];
+                                $pharma_total += $item_total;
+                            ?>
+                            <tr>
+                                <td class="ps-4 py-3">
+                                    <div class="fw-bold"><?php echo $item['name']; ?></div>
+                                </td>
+                                <td><?php echo format_currency($item['price']); ?></td>
+                                <td>
+                                    <input type="number" class="form-control form-control-sm update-qty" 
+                                           style="width: 70px;" 
+                                           data-index="<?php echo $item['original_index']; ?>" 
+                                           value="<?php echo $item['quantity']; ?>" 
+                                           min="1">
+                                </td>
+                                <td class="fw-bold"><?php echo format_currency($item_total); ?></td>
+                                <td class="text-end pe-4">
+                                    <a href="cart.php?action=remove&index=<?php echo $item['original_index']; ?>" class="btn btn-sm text-danger"><i class="fas fa-trash"></i></a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot class="bg-light">
+                            <tr>
+                                <td colspan="5" class="p-4">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="text-muted small text-uppercase fw-bold">Subtotal for <?php echo $data['name']; ?></span>
+                                            <h4 class="mb-0 fw-bold text-primary"><?php echo format_currency($pharma_total); ?></h4>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <a href="checkout.php?pharmacy_id=<?php echo $pharma_id; ?>" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                                                Place Order with this Pharmacy <i class="fas fa-arrow-right ms-2"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
-            <div class="d-flex justify-content-between mb-4">
-                <span>Tax</span>
-                <span class="text-muted">Managed by Pharmacy</span>
-            </div>
-            <hr>
-            <div class="d-flex justify-content-between mb-4">
-                <span class="h5 fw-bold">Grand Total</span>
-                <span class="h5 fw-bold text-primary"><?php echo format_currency($grand_total); ?></span>
-            </div>
-            
-            <?php if (!empty($_SESSION['cart'])): ?>
-            <a href="checkout.php" class="btn btn-primary btn-lg w-100 rounded-pill shadow">
-                Checkout Now <i class="fas fa-arrow-right ms-2"></i>
-            </a>
-            <?php else: ?>
-            <button class="btn btn-secondary btn-lg w-100 rounded-pill" disabled>Checkout</button>
-            <?php endif; ?>
-            
-            <div class="text-center mt-3">
-                <a href="inventory.php" class="text-decoration-none small"><i class="fas fa-shopping-basket me-1"></i> Continue Shopping</a>
-            </div>
-        </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </div>
 

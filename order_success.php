@@ -27,7 +27,16 @@ include 'includes/templates/header.php';
             </div>
             
             <h2 class="fw-bold mb-3">Order Placed Successfully!</h2>
-            <p class="text-muted mb-5">Your order has been sent to the pharmacy. You can track its status in the "My Orders" section.</p>
+            <p class="text-muted mb-4">Your order has been sent to the pharmacy.</p>
+            
+            <div class="alert alert-info border-0 rounded-4 mb-5 shadow-sm text-start">
+                <h6 class="fw-bold"><i class="fas fa-info-circle me-2"></i> What next?</h6>
+                <ul class="mb-0 small">
+                    <li>Visit the selected pharmacy in person.</li>
+                    <li>Provide your order details or name at the counter.</li>
+                    <li>Pay via <strong>Cash, Card, or MoMo</strong> to finalize the sale.</li>
+                </ul>
+            </div>
             
             <div class="d-grid gap-3">
                 <a href="<?php echo $return_url; ?>" class="btn btn-primary btn-lg rounded-pill shadow-sm">

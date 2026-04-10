@@ -73,13 +73,16 @@ include 'includes/templates/header.php';
                 ?>
                 <tr>
                     <td class="ps-4 fw-bold"><?php echo $o['invoice_no']; ?></td>
-                    <td><span class="text-primary fw-bold"><?php echo $o['pharmacy_name']; ?></span></td>
+                    <td>
+                        <div class="fw-bold text-primary"><?php echo $o['pharmacy_name']; ?></div>
+                        <div class="small text-muted"><i class="fas fa-map-marker-alt me-1"></i> Pickup Location</div>
+                    </td>
                     <td><?php echo date('M d, Y', strtotime($o['sale_date'])); ?></td>
                     <td class="fw-bold"><?php echo format_currency($o['grand_total']); ?></td>
                     <td><span class="badge <?php echo $status_class; ?> rounded-pill px-3"><?php echo ucfirst($o['order_status']); ?></span></td>
                     <td class="text-end pe-4">
-                        <button class="btn btn-sm btn-light rounded-pill px-3" onclick="alert('Tracking details coming soon!')">
-                            <i class="fas fa-truck me-1"></i> Track
+                        <button class="btn btn-sm btn-light rounded-pill px-3" onclick="alert('Please visit <?php echo addslashes($o['pharmacy_name']); ?> to pick up your order. Present Invoice #<?php echo $o['invoice_no']; ?> at the counter.')">
+                            <i class="fas fa-eye me-1"></i> Pickup Info
                         </button>
                     </td>
                 </tr>
