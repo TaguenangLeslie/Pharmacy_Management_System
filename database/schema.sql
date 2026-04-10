@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP NULL,
     is_active BOOLEAN DEFAULT TRUE,
+    language VARCHAR(10) DEFAULT 'en', -- EN/FR preference
     last_notif_dismissal TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE SET NULL
 );
@@ -81,11 +82,14 @@ CREATE TABLE IF NOT EXISTS sales (
     id INT PRIMARY KEY AUTO_INCREMENT,
     invoice_no VARCHAR(20) UNIQUE NOT NULL,
     user_id INT,
+    pharmacist_id INT NULL, -- Pharmacist who initiated
+    processed_by INT NULL, -- Cashier who finalized
     customer_id INT,
     customer_name VARCHAR(100),
     customer_phone VARCHAR(15),
     total_amount DECIMAL(10,2) NOT NULL,
     discount DECIMAL(10,2) DEFAULT 0.00,
+    platform_tax DECIMAL(10,2) DEFAULT 0.00, -- SaaS owners revenue
     tax DECIMAL(10,2) DEFAULT 0.00,
     grand_total DECIMAL(10,2) NOT NULL,
     payment_method ENUM('cash', 'card', 'mobile') NOT NULL,
@@ -94,6 +98,8 @@ CREATE TABLE IF NOT EXISTS sales (
     pharmacy_id INT,
     sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (pharmacist_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE CASCADE
 );
 

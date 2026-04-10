@@ -23,7 +23,7 @@ echo "<h2>🚀 PharmaCare - System Setup</h2>";
 
 try {
     // 1. Re-connect to create DB if missing (using credentials from config)
-    $temp_pdo = new PDO("mysql:host=" . DB_HOST, DB_USER, DB_PASS);
+    $temp_pdo = new PDO("mysql:host=" . DB_HOST . ";port=" . DB_PORT, DB_USER, DB_PASS);
     $temp_pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $temp_pdo->exec("CREATE DATABASE IF NOT EXISTS " . DB_NAME);
     echo "<p class='success'>✅ Database '" . DB_NAME . "' ensured.</p>";
@@ -189,7 +189,15 @@ try {
 
     // 5. System Fixes
     $pdo->exec("UPDATE users SET is_active = 1 WHERE is_active IS NULL");
-    // Removed global setting insertion that violated FK setup. Settings will be seeded per pharmacy.
+    
+    // Seed Global Platform Tax Rate if missing
+    $stmt = $pdo->prepare("SELECT id FROM settings WHERE setting_key = 'platform_tax_rate' AND pharmacy_id IS NULL");
+    $stmt->execute();
+    if (!$stmt->fetch()) {
+        $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value, pharmacy_id) VALUES ('platform_tax_rate', '2.00', NULL)");
+        $stmt->execute();
+        echo "<p class='success'>✅ Global Platform Tax Rate initialized to 2.00%.</p>";
+    }
 
     // 6. Seed Medicines & Customers for all Pharmacies
     foreach ($pharma_ids as $p_name => $p_id) {

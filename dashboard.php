@@ -13,17 +13,15 @@ if (has_role('customer')) {
     redirect('explore.php');
 }
 
-$pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+$pharmacy_id = (isset($_SESSION['pharmacy_id']) && $_SESSION['pharmacy_id'] > 0) ? intval($_SESSION['pharmacy_id']) : null;
+$ph_filter = $pharmacy_id ? " WHERE pharmacy_id = $pharmacy_id" : "";
+$ph_filter_and = $pharmacy_id ? " AND pharmacy_id = $pharmacy_id" : "";
 
 $page_title = 'Dashboard';
 $active_page = 'dashboard';
 
 // Fetch some stats with multi-tenant support
 try {
-    $pharma_id = (isset($_SESSION['pharmacy_id']) && $_SESSION['pharmacy_id'] > 0) ? intval($_SESSION['pharmacy_id']) : null;
-    $ph_filter = $pharma_id ? " WHERE pharmacy_id = $pharma_id" : "";
-    $ph_filter_and = $pharma_id ? " AND pharmacy_id = $pharma_id" : "";
-
     // 1. Today's Sales
     $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = CURDATE() $ph_filter_and");
     $stmt->execute();
@@ -31,7 +29,7 @@ try {
 
     // 1b. Today's Platform Profit
     $today_profit = 0;
-    if (!$pharma_id) {
+    if (!$pharmacy_id) {
         $stmt = $pdo->prepare("SELECT SUM(platform_tax) FROM sales WHERE DATE(sale_date) = CURDATE()");
         $stmt->execute();
         $today_profit = $stmt->fetchColumn() ?: 0;
@@ -48,7 +46,7 @@ try {
     $expiring_soon = $stmt->fetchColumn() ?: 0;
 
     // 4. Total Medicines
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM medicines" . ($pharma_id ? " WHERE pharmacy_id = $pharma_id" : ""));
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM medicines" . ($pharmacy_id ? " WHERE pharmacy_id = $pharmacy_id" : ""));
     $stmt->execute();
     $total_medicines = $stmt->fetchColumn() ?: 0;
 
@@ -92,17 +90,17 @@ include 'includes/templates/header.php';
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-white-50 small text-uppercase fw-bold">
-                            <?php echo !$pharma_id ? 'Tax Profit (Today)' : __('today_sales'); ?>
+                            <?php echo !$pharmacy_id ? 'Tax Profit (Today)' : __('today_sales'); ?>
                         </div>
                         <div class="h3 mb-0 fw-bold">
-                            <?php echo format_currency(!$pharma_id ? $today_profit : $today_sales); ?>
+                            <?php echo format_currency(!$pharmacy_id ? $today_profit : $today_sales); ?>
                         </div>
-                        <?php if (!$pharma_id): ?>
+                        <?php if (!$pharmacy_id): ?>
                         <div class="small mt-1 opacity-75">Gross Sales: <?php echo format_currency($today_sales); ?></div>
                         <?php endif; ?>
                     </div>
                     <div class="stats-icon-box">
-                        <i class="fas <?php echo !$pharma_id ? 'fa-hand-holding-usd' : 'fa-dollar-sign'; ?> fa-lg"></i>
+                        <i class="fas <?php echo !$pharmacy_id ? 'fa-hand-holding-usd' : 'fa-dollar-sign'; ?> fa-lg"></i>
                     </div>
                 </div>
             </div>
@@ -302,14 +300,14 @@ include 'includes/templates/header.php';
 // Fetch chart data (Last 7 days)
 $chart_labels = [];
 $chart_data = [];
-$ph_filter_and = ($_SESSION['pharmacy_id'] ?? null) ? " AND pharmacy_id = " . intval($_SESSION['pharmacy_id']) : "";
+$chart_ph_filter = $pharmacy_id ? " AND pharmacy_id = $pharmacy_id" : "";
 
 for ($i = 6; $i >= 0; $i--) {
     $date = date('Y-m-d', strtotime("-$i days"));
     $label = date('D', strtotime($date));
     $chart_labels[] = $label;
     
-    $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = ? $ph_filter_and");
+    $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = ? $chart_ph_filter");
     $stmt->execute([$date]);
     $chart_data[] = $stmt->fetchColumn() ?: 0;
 }
