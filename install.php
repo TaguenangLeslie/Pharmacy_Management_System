@@ -55,18 +55,30 @@ try {
     }
     echo "<p class='success'>✅ Database tables and relations ensured.</p>";
 
-    // 2b. Schema Upgrade (Add columns to existing tables if missing)
+    // 2b. Schema Repair (Ensure columns are correctly configured regardless of existence)
+    $repairs = [
+        'settings' => "ALTER TABLE settings MODIFY COLUMN pharmacy_id INT NULL",
+        'customers' => "ALTER TABLE customers MODIFY COLUMN pharmacy_id INT NULL",
+        'suppliers' => "ALTER TABLE suppliers MODIFY COLUMN pharmacy_id INT NULL",
+        'medicines' => "ALTER TABLE medicines MODIFY COLUMN pharmacy_id INT NULL",
+        'sales' => "ALTER TABLE sales MODIFY COLUMN pharmacy_id INT NULL"
+    ];
+
+    foreach ($repairs as $table => $sql) {
+        try {
+            $pdo->exec($sql);
+        } catch (PDOException $e) {
+            // Silently ignore if table doesn't exist yet, it will be handled by schema.sql or missing check
+        }
+    }
+
+    // 2c. Schema Upgrade (Add columns to existing tables ONLY if missing)
     $columns_to_check = [
         'users' => [
-            'id' => "ALTER TABLE users ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'language' => "ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'en' AFTER role",
             'last_notif_dismissal' => "ALTER TABLE users ADD COLUMN last_notif_dismissal TIMESTAMP NULL DEFAULT NULL"
         ],
-        'settings' => [
-            'id' => "ALTER TABLE settings ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST"
-        ],
         'pharmacies' => [
-            'id' => "ALTER TABLE pharmacies ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'license_no' => "ALTER TABLE pharmacies ADD COLUMN license_no VARCHAR(50) AFTER email",
             'pharmacy_type' => "ALTER TABLE pharmacies ADD COLUMN pharmacy_type ENUM('Retail', 'Wholesale', 'Hospital', 'Clinic') DEFAULT 'Retail' AFTER license_no",
             'owner_full_name' => "ALTER TABLE pharmacies ADD COLUMN owner_full_name VARCHAR(100) AFTER owner_id",
@@ -78,36 +90,18 @@ try {
             'pharmacist_license_no' => "ALTER TABLE pharmacies ADD COLUMN pharmacist_license_no VARCHAR(50) AFTER pharmacist_name",
             'pharmacist_doc' => "ALTER TABLE pharmacies ADD COLUMN pharmacist_doc VARCHAR(255) AFTER pharmacist_license_no"
         ],
-        'customers' => [
-            'id' => "ALTER TABLE customers ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
-            'pharmacy_id' => "ALTER TABLE customers ADD COLUMN pharmacy_id INT NULL AFTER id, ADD INDEX(pharmacy_id)"
-        ],
-        'suppliers' => [
-            'id' => "ALTER TABLE suppliers ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
-            'pharmacy_id' => "ALTER TABLE suppliers ADD COLUMN pharmacy_id INT NULL AFTER id, ADD INDEX(pharmacy_id)"
-        ],
-        'prescriptions' => [
-            'id' => "ALTER TABLE prescriptions ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
-            'user_id' => "ALTER TABLE prescriptions ADD COLUMN user_id INT NULL AFTER id, ADD INDEX(user_id)"
-        ],
         'medicines' => [
-            'id' => "ALTER TABLE medicines ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
             'reorder_level' => "ALTER TABLE medicines ADD COLUMN reorder_level INT DEFAULT 10 AFTER unit",
             'barcode' => "ALTER TABLE medicines ADD COLUMN barcode VARCHAR(50) AFTER expiry_date"
         ],
-        'support_messages' => [
-            'id' => "ALTER TABLE support_messages ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
-            'is_read' => "ALTER TABLE support_messages ADD COLUMN is_read TINYINT DEFAULT 0 AFTER message"
-        ],
         'sales' => [
-            'id' => "ALTER TABLE sales ADD COLUMN id INT PRIMARY KEY AUTO_INCREMENT FIRST",
-            'pharmacist_id' => "ALTER TABLE sales ADD COLUMN pharmacist_id INT AFTER user_id, ADD FOREIGN KEY (pharmacist_id) REFERENCES users(id) ON DELETE SET NULL",
-            'processed_by' => "ALTER TABLE sales ADD COLUMN processed_by INT AFTER pharmacist_id, ADD FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL",
+            'pharmacist_id' => "ALTER TABLE sales ADD COLUMN pharmacist_id INT AFTER user_id",
+            'processed_by' => "ALTER TABLE sales ADD COLUMN processed_by INT AFTER pharmacist_id",
             'platform_tax' => "ALTER TABLE sales ADD COLUMN platform_tax DECIMAL(10,2) DEFAULT 0 AFTER discount"
         ]
     ];
 
-    // 2c. Ensure New Tables Exist (even if not in schema.sql for some reason)
+    // 2d. Ensure New Tables Exist
     $new_tables = [
         'support_messages' => "CREATE TABLE IF NOT EXISTS support_messages (
             id INT PRIMARY KEY AUTO_INCREMENT,
@@ -143,16 +137,23 @@ try {
     }
 
     foreach ($columns_to_check as $table => $cols) {
-        $existing_cols = $pdo->query("DESCRIBE $table")->fetchAll(PDO::FETCH_COLUMN);
-        foreach ($cols as $col_name => $sql) {
-            if (!in_array($col_name, $existing_cols)) {
-                try {
-                    $pdo->exec($sql);
-                    echo "<p class='success'>✅ Added missing column: <strong>$col_name</strong> to $table.</p>";
-                } catch (PDOException $e) {
-                    echo "<p class='error'>❌ Failed to add $col_name: " . $e->getMessage() . "</p>";
+        try {
+            $check_stmt = $pdo->query("DESCRIBE $table");
+            if (!$check_stmt) continue;
+            $existing_cols = $check_stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            foreach ($cols as $col_name => $sql) {
+                if (!in_array($col_name, $existing_cols)) {
+                    try {
+                        $pdo->exec($sql);
+                        echo "<p class='success'>✅ Added missing column: <strong>$col_name</strong> to $table.</p>";
+                    } catch (PDOException $e) {
+                        echo "<p class='error'>❌ Failed to add $col_name: " . $e->getMessage() . "</p>";
+                    }
                 }
             }
+        } catch (Exception $e) {
+            // Table doesn't exist yet, schema.sql will create it
         }
     }
     echo "<p class='success'>✅ Schema upgrade check completed.</p>";
@@ -228,6 +229,8 @@ try {
 
     // 6. Seed Medicines & Customers for all Pharmacies
     foreach ($pharma_ids as $p_name => $p_id) {
+        if (!$p_id) continue;
+        
         // Seed Supplier per pharmacy
         $stmt = $pdo->prepare("SELECT 1 FROM suppliers WHERE pharmacy_id = ? LIMIT 1");
         $stmt->execute([$p_id]);
