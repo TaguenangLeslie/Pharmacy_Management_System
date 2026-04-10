@@ -45,7 +45,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $insert->execute([$key, $value, $pharmacy_id]);
             }
         } catch (PDOException $e) {
-            $error = "Error updating settings: " . $e->getMessage();
+            if ($e->getCode() == '23000') {
+                $error = "Database constraint error: Ensure your settings table allows NULL pharmacy_id. Run <a href='install.php'>install.php</a> to fix.";
+            } else {
+                $error = "Error updating settings: " . $e->getMessage();
+            }
         }
     }
     
