@@ -23,10 +23,26 @@ echo "<h2>🚀 PharmaCare - System Setup</h2>";
 
 try {
     // 1. Re-connect to create DB if missing (using credentials from config)
-    $temp_pdo = new PDO("mysql:host=" . DB_HOST . ";port=" . DB_PORT, DB_USER, DB_PASS);
-    $temp_pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $temp_pdo->exec("CREATE DATABASE IF NOT EXISTS " . DB_NAME);
-    echo "<p class='success'>✅ Database '" . DB_NAME . "' ensured.</p>";
+    $ports = [DB_PORT, '3306', '3307']; // Try current, then defaults
+    $temp_pdo = null;
+    $success = false;
+
+    foreach (array_unique($ports) as $port) {
+        try {
+            $temp_pdo = new PDO("mysql:host=" . DB_HOST . ";port=" . $port, DB_USER, DB_PASS);
+            $temp_pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $temp_pdo->exec("CREATE DATABASE IF NOT EXISTS " . DB_NAME);
+            echo "<p class='success'>✅ Database '" . DB_NAME . "' ensured on port $port.</p>";
+            $success = true;
+            break;
+        } catch (PDOException $e) {
+            continue;
+        }
+    }
+
+    if (!$success) {
+        throw new Exception("Could not connect to any MySQL port to initialize database.");
+    }
     
     // Re-connect to the actual DB
     $pdo->exec("USE " . DB_NAME);

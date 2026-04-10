@@ -13,25 +13,49 @@ if (has_role('customer')) {
     redirect('explore.php');
 }
 
-$pharmacy_id = (isset($_SESSION['pharmacy_id']) && $_SESSION['pharmacy_id'] > 0) ? intval($_SESSION['pharmacy_id']) : null;
-$ph_filter = $pharmacy_id ? " WHERE pharmacy_id = $pharmacy_id" : "";
-$ph_filter_and = $pharmacy_id ? " AND pharmacy_id = $pharmacy_id" : "";
+// Handle Time Range Filtering
+$range = $_GET['range'] ?? 'today';
+$start_date = date('Y-m-d');
+$range_label = __('today');
+
+switch ($range) {
+    case 'week':
+        $start_date = date('Y-m-d', strtotime('-7 days'));
+        $range_label = __('this_week');
+        break;
+    case 'month':
+        $start_date = date('Y-m-d', strtotime('-30 days'));
+        $range_label = __('this_month');
+        break;
+    case 'year':
+        $start_date = date('Y-m-d', strtotime('-365 days'));
+        $range_label = __('this_year');
+        break;
+    default:
+        $start_date = date('Y-m-d');
+        $range_label = __('today');
+}
 
 $page_title = 'Dashboard';
 $active_page = 'dashboard';
 
-// Fetch some stats with multi-tenant support
+// Fetch stats with multi-tenant support
 try {
-    // 1. Today's Sales
-    $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = CURDATE() $ph_filter_and");
-    $stmt->execute();
+    // Determine the pharmacy filter
+    $pharmacy_id = (isset($_SESSION['pharmacy_id']) && $_SESSION['pharmacy_id'] > 0) ? intval($_SESSION['pharmacy_id']) : null;
+    $ph_filter = $pharmacy_id ? " WHERE pharmacy_id = $pharmacy_id" : "";
+    $ph_filter_and = $pharmacy_id ? " AND pharmacy_id = $pharmacy_id" : "";
+
+    // 1. Sales in selected range
+    $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) BETWEEN ? AND ? $ph_filter_and");
+    $stmt->execute([$start_date, date('Y-m-d')]);
     $today_sales = $stmt->fetchColumn() ?: 0;
 
-    // 1b. Today's Platform Profit
+    // 1b. Platform Profit in selected range (Global Admin Only)
     $today_profit = 0;
     if (!$pharmacy_id) {
-        $stmt = $pdo->prepare("SELECT SUM(platform_tax) FROM sales WHERE DATE(sale_date) = CURDATE()");
-        $stmt->execute();
+        $stmt = $pdo->prepare("SELECT SUM(platform_tax) FROM sales WHERE DATE(sale_date) BETWEEN ? AND ?");
+        $stmt->execute([$start_date, date('Y-m-d')]);
         $today_profit = $stmt->fetchColumn() ?: 0;
     }
 
@@ -46,7 +70,7 @@ try {
     $expiring_soon = $stmt->fetchColumn() ?: 0;
 
     // 4. Total Medicines
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM medicines" . ($pharmacy_id ? " WHERE pharmacy_id = $pharmacy_id" : ""));
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM medicines $ph_filter");
     $stmt->execute();
     $total_medicines = $stmt->fetchColumn() ?: 0;
 
@@ -76,9 +100,17 @@ include 'includes/templates/header.php';
             <?php endif; ?>
             <button type="button" class="btn btn-sm btn-outline-secondary"><?php echo __('export'); ?></button>
         </div>
-        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle">
-            <i class="fas fa-calendar me-1"></i> <?php echo __('this_week'); ?>
-        </button>
+        <div class="dropdown">
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-calendar me-1"></i> <?php echo $range_label; ?>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                <li><a class="dropdown-item <?php echo ($range == 'today') ? 'active' : ''; ?>" href="dashboard.php?range=today"><?php echo __('today'); ?></a></li>
+                <li><a class="dropdown-item <?php echo ($range == 'week') ? 'active' : ''; ?>" href="dashboard.php?range=week"><?php echo __('this_week'); ?></a></li>
+                <li><a class="dropdown-item <?php echo ($range == 'month') ? 'active' : ''; ?>" href="dashboard.php?range=month"><?php echo __('this_month'); ?></a></li>
+                <li><a class="dropdown-item <?php echo ($range == 'year') ? 'active' : ''; ?>" href="dashboard.php?range=year"><?php echo __('this_year'); ?></a></li>
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -90,7 +122,7 @@ include 'includes/templates/header.php';
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-white-50 small text-uppercase fw-bold">
-                            <?php echo !$pharmacy_id ? 'Tax Profit (Today)' : __('today_sales'); ?>
+                            <?php echo !$pharmacy_id ? "Tax Profit ($range_label)" : "Sales ($range_label)"; ?>
                         </div>
                         <div class="h3 mb-0 fw-bold">
                             <?php echo format_currency(!$pharmacy_id ? $today_profit : $today_sales); ?>
@@ -297,19 +329,35 @@ include 'includes/templates/header.php';
 <?php endif; ?>
 
 <?php
-// Fetch chart data (Last 7 days)
+// Fetch chart data based on range
 $chart_labels = [];
 $chart_data = [];
 $chart_ph_filter = $pharmacy_id ? " AND pharmacy_id = $pharmacy_id" : "";
 
-for ($i = 6; $i >= 0; $i--) {
-    $date = date('Y-m-d', strtotime("-$i days"));
-    $label = date('D', strtotime($date));
-    $chart_labels[] = $label;
-    
-    $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = ? $chart_ph_filter");
-    $stmt->execute([$date]);
-    $chart_data[] = $stmt->fetchColumn() ?: 0;
+if ($range === 'year') {
+    // Show last 12 months
+    for ($i = 11; $i >= 0; $i--) {
+        $month_start = date('Y-m-01', strtotime("-$i months"));
+        $month_end = date('Y-m-t', strtotime("-$i months"));
+        $label = date('M Y', strtotime($month_start));
+        $chart_labels[] = $label;
+        
+        $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) BETWEEN ? AND ? $chart_ph_filter");
+        $stmt->execute([$month_start, $month_end]);
+        $chart_data[] = $stmt->fetchColumn() ?: 0;
+    }
+} else {
+    // Show daily trend (7 days for today/week, 30 days for month)
+    $days = ($range === 'month') ? 29 : 6;
+    for ($i = $days; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-$i days"));
+        $label = ($range === 'month') ? date('d M', strtotime($date)) : date('D', strtotime($date));
+        $chart_labels[] = $label;
+        
+        $stmt = $pdo->prepare("SELECT SUM(grand_total) FROM sales WHERE DATE(sale_date) = ? $chart_ph_filter");
+        $stmt->execute([$date]);
+        $chart_data[] = $stmt->fetchColumn() ?: 0;
+    }
 }
 ?>
 
@@ -319,21 +367,21 @@ $extra_js = '
 <script>
     const ctx = document.getElementById("salesChart").getContext("2d");
     new Chart(ctx, {
-        type: "line",
+        type: "' . ($range === 'year' ? 'bar' : 'line') . '",
         data: {
             labels: ' . json_encode($chart_labels) . ',
             datasets: [{
                 label: \'Sales (FCFA)\',
                 data: ' . json_encode($chart_data) . ',
                 borderColor: \'#FF1493\',
-                backgroundColor: \'rgba(255, 20, 147, 0.1)\',
-                borderWidth: 4,
+                backgroundColor: \'' . ($range === 'year' ? 'rgba(255, 20, 147, 0.6)' : 'rgba(255, 20, 147, 0.1)') . '\',
+                borderWidth: ' . ($range === 'year' ? 0 : 4) . ',
                 fill: true,
                 tension: 0.4,
                 pointBackgroundColor: \'#fff\',
                 pointBorderColor: \'#FF1493\',
                 pointBorderWidth: 2,
-                pointRadius: 4,
+                pointRadius: ' . ($range === 'month' ? 2 : 4) . ',
                 pointHoverRadius: 6
             }]
         },

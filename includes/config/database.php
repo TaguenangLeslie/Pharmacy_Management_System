@@ -4,20 +4,34 @@
  */
 
 define('DB_HOST', 'localhost');
-define('DB_PORT', '3307');
 define('DB_NAME', 'pharmacy_db');
 define('DB_USER', 'root'); // Default XAMPP user
 define('DB_PASS', '');     // Default XAMPP password
 
-try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-} catch (PDOException $e) {
-    // In production, log this error and show a generic message
-    die("Database Connection Error: " . $e->getMessage());
+// Dynamic Port Detection (3307 or 3306)
+$ports = ['3307', '3306'];
+$pdo = null;
+$db_port = '3306';
+
+foreach ($ports as $port) {
+    try {
+        $dsn = "mysql:host=" . DB_HOST . ";port=$port;dbname=" . DB_NAME . ";charset=utf8mb4";
+        $pdo = new PDO($dsn, DB_USER, DB_PASS);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        $db_port = $port;
+        break; // Success!
+    } catch (PDOException $e) {
+        if ($port === end($ports)) {
+            // Both failed
+            die("Database Connection Error: Could not connect to " . DB_HOST . " on ports " . implode(', ', $ports) . ". " . $e->getMessage());
+        }
+        continue;
+    }
 }
+
+define('DB_PORT', $db_port);
 
 
 
